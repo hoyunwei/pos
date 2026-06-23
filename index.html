@@ -141,6 +141,9 @@
   .pay-line { background: #06c755; }
   .pay-btns button:disabled { opacity: 0.35; cursor: default; }
 
+  /* 手機專用元素：桌面/iPad 隱藏 */
+  .m-cart-bar, .cart-backdrop, .cart-collapse { display: none; }
+
   /* ===== 共用：兩段式 Enter 輸入 ===== */
   input.two-stage, .product-grid + *, .te {
     outline: none;
@@ -255,6 +258,67 @@
 
   .backup-note { font-size: 13px; color: var(--ink-soft); background: #fbf6e9; border: 1px solid #ecdfba; border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; }
   .hint-line { font-size: 13px; color: var(--ink-soft); margin-top: 10px; }
+
+  /* ===================== 手機版（窄螢幕） ===================== */
+  @media (max-width: 700px) {
+    /* 頂部：縮小、時鐘隱藏、按鈕不擠 */
+    header { padding: 8px 12px; gap: 8px; }
+    header .brand { font-size: 15px; }
+    header .clock { display: none; }
+    header nav { gap: 4px; }
+    header nav button { font-size: 13px; padding: 7px 10px; }
+
+    /* 收銀台：商品滿版兩欄 */
+    #view-pos { flex-direction: column; }
+    .pos-left { flex: 1; min-height: 0; }
+    .cat-tabs { padding: 10px 12px 4px; }
+    .product-grid {
+      grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 12px 86px;
+    }
+    .product-card { min-height: 0; padding: 12px 10px; }
+    .product-card .pimg { height: 88px; }
+
+    /* 底部購物車摘要列 */
+    .m-cart-bar {
+      display: flex; align-items: center; gap: 10px;
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+      background: var(--ink); color: #fff; border: none; cursor: pointer;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); font-family: inherit;
+      box-shadow: 0 -3px 14px rgba(43,38,34,0.22);
+    }
+    .m-cart-bar .mcb-icon { font-size: 20px; }
+    .m-cart-bar .mcb-info { display: flex; flex-direction: column; line-height: 1.25; text-align: left; }
+    .m-cart-bar .mcb-info b { font-size: 15px; }
+    .m-cart-bar .mcb-info span { font-size: 13px; opacity: 0.8; }
+    .m-cart-bar .mcb-go { margin-left: auto; font-size: 15px; font-weight: 700; background: var(--vermilion); padding: 9px 14px; border-radius: 10px; }
+
+    /* 購物車：從底部滑上來的面板 */
+    .cart-backdrop {
+      display: block; position: fixed; inset: 0; background: rgba(43,38,34,0.45);
+      z-index: 95; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    #view-pos.cart-open .cart-backdrop { opacity: 1; pointer-events: auto; }
+    .pos-right {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: 100%;
+      max-height: 88vh; height: auto; border-left: none;
+      border-radius: 18px 18px 0 0; z-index: 96;
+      transform: translateY(110%); transition: transform 0.25s ease;
+      box-shadow: 0 -6px 24px rgba(43,38,34,0.25);
+    }
+    #view-pos.cart-open .pos-right { transform: translateY(0); }
+    .cart-collapse { display: inline-block; background: none; border: none; font-size: 20px; color: var(--ink-soft); cursor: pointer; padding: 0 8px 0 0; line-height: 1; }
+    .cart-head { padding: 16px 16px 8px; font-size: 17px; }
+    .cart-items { max-height: 42vh; }
+    .pay-btns button { padding: 18px 0; font-size: 18px; }
+
+    /* 商品管理 / 報表：表格可左右滑、卡片自動疊 */
+    #view-prod, #view-report { padding: 14px 14px 40px; }
+    .panel-title { font-size: 17px; }
+    .prod-form { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .prod-table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    .report-cards { grid-template-columns: repeat(2, 1fr); }
+    .rcard .rval { font-size: 24px; }
+  }
 </style>
 </head>
 <body>
@@ -276,8 +340,9 @@
       <div class="cat-tabs" id="catTabs"></div>
       <div class="product-grid" id="productGrid"></div>
     </div>
+    <div class="cart-backdrop" id="cartBackdrop"></div>
     <div class="pos-right">
-      <div class="cart-head">購物車 <button class="clear" id="clearCart">清空</button></div>
+      <div class="cart-head"><button class="cart-collapse" id="cartCollapse">▾</button>購物車 <button class="clear" id="clearCart">清空</button></div>
       <div class="cart-items" id="cartItems"></div>
       <div class="cart-foot">
         <div class="sum-row"><span>小計</span><span id="subtotal">$0</span></div>
@@ -296,6 +361,11 @@
         </div>
       </div>
     </div>
+    <button class="m-cart-bar" id="mCartBar">
+      <span class="mcb-icon">🛒</span>
+      <span class="mcb-info"><b id="mcbCount">0 件</b><span id="mcbTotal">$0</span></span>
+      <span class="mcb-go">查看購物車 ›</span>
+    </button>
   </section>
 
   <!-- 商品管理 -->
@@ -590,7 +660,18 @@
     const has = cart.length>0;
     document.getElementById("payCash").disabled = !has;
     document.getElementById("payLine").disabled = !has;
+    // 手機底部購物車摘要
+    const qty = cart.reduce((s,c)=>s+c.qty, 0);
+    document.getElementById("mcbCount").textContent = qty + " 件";
+    document.getElementById("mcbTotal").textContent = money(info.total);
   }
+
+  // 手機：購物車面板開合
+  function openCart(){ document.getElementById("view-pos").classList.add("cart-open"); }
+  function closeCart(){ document.getElementById("view-pos").classList.remove("cart-open"); }
+  document.getElementById("mCartBar").onclick = openCart;
+  document.getElementById("cartCollapse").onclick = closeCart;
+  document.getElementById("cartBackdrop").onclick = closeCart;
 
   document.getElementById("discType").addEventListener("change", e=>{
     const inp = document.getElementById("discValue");
@@ -678,7 +759,7 @@
     cart = [];
     document.getElementById("discType").value="none";
     document.getElementById("discValue").value=""; document.getElementById("discValue").disabled=true;
-    renderPOS();
+    renderPOS(); closeCart();
     const pname = payment==="cash" ? "現金" : "LINE Pay";
     toast("✓ 完成結帳 "+money(total)+"（"+pname+"）" + (payment==="cash" && cashGot!=null ? "，找零 "+money(cashGot-total) : ""));
   }

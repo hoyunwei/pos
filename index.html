@@ -274,8 +274,9 @@
     .cat-tabs { padding: 10px 12px 4px; }
     .product-grid {
       grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 12px 86px;
+      align-items: start;
     }
-    .product-card { min-height: 0; padding: 12px 10px; }
+    .product-card { min-height: 84px; padding: 12px 10px; }
     .product-card .pimg { height: 88px; }
 
     /* 底部購物車摘要列 */
@@ -315,7 +316,8 @@
     #view-prod, #view-report { padding: 14px 14px 40px; }
     .panel-title { font-size: 17px; }
     .prod-form { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .prod-table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll .prod-table { min-width: 620px; }
     .report-cards { grid-template-columns: repeat(2, 1fr); }
     .rcard .rval { font-size: 24px; }
   }
@@ -400,12 +402,14 @@
         <button class="btn ghost" id="addCatBtn" style="margin-top:10px;font-size:13px;padding:7px 14px">＋ 新增分類</button>
       </div>
     </div>
+    <div class="table-scroll">
     <table class="prod-table">
       <thead><tr>
         <th>圖片</th><th>品名</th><th>分類</th><th class="num">售價</th><th class="num">庫存</th><th class="num">已售</th><th>操作</th>
       </tr></thead>
       <tbody id="prodTableBody"></tbody>
     </table>
+    </div>
   </section>
 
   <!-- 日結報表 -->
@@ -420,18 +424,18 @@
     <div class="report-cards" id="reportCards"></div>
     <div class="report-section">
       <h3>每筆訂單明細</h3>
-      <table class="prod-table"><thead><tr><th class="num">#</th><th>時間</th><th>品項組合</th><th class="num">折扣</th><th class="num">應收</th><th>付款</th></tr></thead>
-        <tbody id="orderBody"></tbody></table>
+      <div class="table-scroll"><table class="prod-table"><thead><tr><th class="num">#</th><th>時間</th><th>品項組合</th><th class="num">折扣</th><th class="num">應收</th><th>付款</th></tr></thead>
+        <tbody id="orderBody"></tbody></table></div>
     </div>
     <div class="report-section">
       <h3>商品銷售排行</h3>
-      <table class="prod-table"><thead><tr><th>品名</th><th class="num">賣出數量</th><th class="num">小計營收</th></tr></thead>
-        <tbody id="rankBody"></tbody></table>
+      <div class="table-scroll"><table class="prod-table"><thead><tr><th>品名</th><th class="num">賣出數量</th><th class="num">小計營收</th></tr></thead>
+        <tbody id="rankBody"></tbody></table></div>
     </div>
     <div class="report-section">
       <h3>剩餘庫存清單</h3>
-      <table class="prod-table"><thead><tr><th>品名</th><th>分類</th><th class="num">剩餘</th></tr></thead>
-        <tbody id="stockBody"></tbody></table>
+      <div class="table-scroll"><table class="prod-table"><thead><tr><th>品名</th><th>分類</th><th class="num">剩餘</th></tr></thead>
+        <tbody id="stockBody"></tbody></table></div>
     </div>
   </section>
 </main>

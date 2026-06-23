@@ -318,9 +318,11 @@
     .panel-title { font-size: 17px; }
     .prod-form { grid-template-columns: 1fr 1fr; gap: 10px; }
 
-    /* 報表表格：寬，維持橫向捲動 */
+    /* 報表表格：自動符合螢幕寬，內容過長換行（不強迫橫滑） */
     #view-report .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    #view-report .table-scroll .prod-table { min-width: 540px; }
+    #view-report .prod-table { width: 100%; min-width: 0; }
+    #view-report .prod-table th, #view-report .prod-table td { padding: 9px 6px; font-size: 13px; white-space: normal; }
+    #view-report .prod-table td.num, #view-report .prod-table th.num { white-space: nowrap; }
 
     /* 商品管理：表格改直式卡片，整頁一起上下滑（不要單區塊橫滑） */
     #view-prod .table-scroll { overflow: visible; }

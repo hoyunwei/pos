@@ -316,8 +316,23 @@
     #view-prod, #view-report { padding: 14px 14px 40px; }
     .panel-title { font-size: 17px; }
     .prod-form { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table-scroll .prod-table { min-width: 620px; }
+
+    /* 報表表格：寬，維持橫向捲動 */
+    #view-report .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    #view-report .table-scroll .prod-table { min-width: 540px; }
+
+    /* 商品管理：表格改直式卡片，整頁一起上下滑（不要單區塊橫滑） */
+    #view-prod .table-scroll { overflow: visible; }
+    #view-prod .prod-table { min-width: 0; display: block; box-shadow: none; background: none; }
+    #view-prod .prod-table thead { display: none; }
+    #view-prod .prod-table tbody, #view-prod .prod-table tr, #view-prod .prod-table td { display: block; width: 100%; }
+    #view-prod .prod-table tr { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 12px; padding: 2px 14px; }
+    #view-prod .prod-table td { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: right; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    #view-prod .prod-table td:last-child { border-bottom: none; }
+    #view-prod .prod-table td::before { content: attr(data-label); font-size: 13px; font-weight: 600; color: var(--ink-soft); text-align: left; flex-shrink: 0; }
+    #view-prod .prod-table .name-edit, #view-prod .prod-table .cat-edit { width: auto; flex: 1; min-width: 0; }
+    #view-prod .prod-table .price-edit, #view-prod .prod-table .stock-edit { width: 90px; }
+
     .report-cards { grid-template-columns: repeat(2, 1fr); }
     .rcard .rval { font-size: 24px; }
   }
@@ -817,13 +832,13 @@
       const catOpts = settings.categories.map(c=> '<option value="'+esc(c)+'"'+(c===p.category?' selected':'')+'>'+esc(c)+'</option>').join("")
         + '<option value="__add__">＋ 新增分類…</option>';
       tr.innerHTML =
-        '<td>'+imgCell+'</td>'+
-        '<td><input class="name-edit" type="text" value="'+esc(p.name)+'">'+(p.off?' <span class="badge-off">停售</span>':'')+'</td>'+
-        '<td><select class="cat-edit">'+catOpts+'</select></td>'+
-        '<td class="num"><input class="price-edit" type="number" value="'+p.price+'"></td>'+
-        '<td class="num"><input class="stock-edit" type="number" value="'+p.stock+'"></td>'+
-        '<td class="num">'+(p.sold||0)+'</td>'+
-        '<td><button class="tbtn toggle">'+(p.off?'恢復':'停售')+'</button><button class="tbtn del">刪除</button></td>';
+        '<td data-label="圖片">'+imgCell+'</td>'+
+        '<td data-label="品名"><input class="name-edit" type="text" value="'+esc(p.name)+'">'+(p.off?' <span class="badge-off">停售</span>':'')+'</td>'+
+        '<td data-label="分類"><select class="cat-edit">'+catOpts+'</select></td>'+
+        '<td class="num" data-label="售價"><input class="price-edit" type="number" value="'+p.price+'"></td>'+
+        '<td class="num" data-label="庫存"><input class="stock-edit" type="number" value="'+p.stock+'"></td>'+
+        '<td class="num" data-label="已售">'+(p.sold||0)+'</td>'+
+        '<td data-label="操作"><button class="tbtn toggle">'+(p.off?'恢復':'停售')+'</button><button class="tbtn del">刪除</button></td>';
 
       // 品名（兩段式 Enter / 離開儲存）
       const nameInput = tr.querySelector(".name-edit");

@@ -189,6 +189,7 @@
   .prod-table .tbtn { font-size: 13px; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); cursor: pointer; margin-right: 4px; }
   .prod-table .tbtn.del { color: var(--vermilion); border-color: #e6c4bc; }
   .badge-off { font-size: 12px; background: #eee; color: var(--ink-soft); padding: 2px 7px; border-radius: 6px; }
+  .row-summary { display: none; }  /* 桌面隱藏摘要列，只在手機用 */
   .cat-manager { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 18px; box-shadow: var(--shadow); }
   .cat-manager-head { display: flex; align-items: center; gap: 8px; width: 100%; font-size: 16px; font-weight: 700; color: var(--ink); background: none; border: none; cursor: pointer; font-family: inherit; padding: 0; text-align: left; }
   .cat-manager-head .chev { display: inline-block; transition: transform 0.15s; color: var(--ink-soft); }
@@ -326,12 +327,23 @@
     #view-prod .prod-table { min-width: 0; display: block; box-shadow: none; background: none; }
     #view-prod .prod-table thead { display: none; }
     #view-prod .prod-table tbody, #view-prod .prod-table tr, #view-prod .prod-table td { display: block; width: 100%; }
-    #view-prod .prod-table tr { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 12px; padding: 2px 14px; }
+    #view-prod .prod-table tr { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 10px; padding: 0 14px; }
+    #view-prod .prod-table tr.open { padding-bottom: 6px; }
     #view-prod .prod-table td { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: right; padding: 9px 0; border-bottom: 1px solid var(--line); }
     #view-prod .prod-table td:last-child { border-bottom: none; }
     #view-prod .prod-table td::before { content: attr(data-label); font-size: 13px; font-weight: 600; color: var(--ink-soft); text-align: left; flex-shrink: 0; }
     #view-prod .prod-table .name-edit, #view-prod .prod-table .cat-edit { width: auto; flex: 1; min-width: 0; }
     #view-prod .prod-table .price-edit, #view-prod .prod-table .stock-edit { width: 90px; }
+
+    /* 收合：預設只顯示一列摘要，點開才顯示編輯欄位 */
+    #view-prod .prod-table .row-summary { display: flex; align-items: center; gap: 10px; padding: 13px 0; cursor: pointer; border-bottom: none; text-align: left; }
+    #view-prod .prod-table .row-summary::before { content: none; }
+    #view-prod .prod-table .row-summary .rs-main { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; white-space: normal; }
+    #view-prod .prod-table .row-summary .rs-sub { font-size: 13px; color: var(--ink-soft); white-space: nowrap; flex-shrink: 0; }
+    #view-prod .prod-table .row-summary .rs-chev { font-size: 13px; color: var(--ink-soft); transition: transform 0.15s; flex-shrink: 0; }
+    #view-prod .prod-table tr.open .row-summary { border-bottom: 1px solid var(--line); }
+    #view-prod .prod-table tr.open .row-summary .rs-chev { transform: rotate(90deg); }
+    #view-prod .prod-table tr:not(.open) td:not(.row-summary) { display: none; }
 
     .report-cards { grid-template-columns: repeat(2, 1fr); }
     .rcard .rval { font-size: 24px; }
@@ -832,6 +844,7 @@
       const catOpts = settings.categories.map(c=> '<option value="'+esc(c)+'"'+(c===p.category?' selected':'')+'>'+esc(c)+'</option>').join("")
         + '<option value="__add__">＋ 新增分類…</option>';
       tr.innerHTML =
+        '<td class="row-summary"><span class="rs-main">'+esc(p.name)+(p.off?' <span class="badge-off">停售</span>':'')+'</span><span class="rs-sub">'+money(p.price)+' · 剩 '+p.stock+'</span><span class="rs-chev">▸</span></td>'+
         '<td data-label="圖片">'+imgCell+'</td>'+
         '<td data-label="品名"><input class="name-edit" type="text" value="'+esc(p.name)+'">'+(p.off?' <span class="badge-off">停售</span>':'')+'</td>'+
         '<td data-label="分類"><select class="cat-edit">'+catOpts+'</select></td>'+
@@ -873,6 +886,7 @@
       if (clr) clr.onclick = ()=>{ if(confirm("清除「"+p.name+"」的圖片？")){ delete p.img; save(K_PROD,products); renderProdTable(); } };
       tr.querySelector(".toggle").onclick = ()=>{ p.off=!p.off; save(K_PROD,products); renderProdTable(); };
       tr.querySelector(".del").onclick = ()=>{ if(confirm("刪除「"+p.name+"」？此動作不可復原。")){ products=products.filter(x=>x!==p); save(K_PROD,products); renderProdTable(); } };
+      tr.querySelector(".row-summary").onclick = ()=> tr.classList.toggle("open");
       tb.appendChild(tr);
     });
     renderCatManager();

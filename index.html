@@ -141,6 +141,17 @@
   .pay-line { background: #06c755; }
   .pay-btns button:disabled { opacity: 0.35; cursor: default; }
 
+  /* 自訂品項卡 */
+  .product-card.custom-card { border: 2px dashed var(--gold); background: #fdfaf2; align-items: center; justify-content: center; text-align: center; gap: 2px; }
+  .product-card.custom-card .cc-plus { font-size: 26px; color: var(--gold); font-weight: 800; line-height: 1; }
+  .product-card.custom-card .cc-text { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .product-card.custom-card .cc-sub { font-size: 12px; color: var(--ink-soft); }
+  .custom-field { display: flex; flex-direction: column; gap: 5px; margin: 12px 0; }
+  .custom-field label { font-size: 14px; color: var(--ink-soft); font-weight: 600; }
+  .custom-field input { font-size: 18px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); font-family: inherit; }
+  .custom-field input:focus { outline: none; border-color: var(--vermilion); }
+  .custom-field input.confirmed { border-color: transparent; background: #fff4e8; }
+
   /* 手機專用元素：桌面/iPad 隱藏 */
   .m-cart-bar, .cart-backdrop, .cart-collapse { display: none; }
 
@@ -531,6 +542,20 @@
   </div>
 </div>
 
+<!-- 自訂品項 Modal -->
+<div class="modal-bg" id="customModal">
+  <div class="modal">
+    <h3>自訂品項</h3>
+    <div class="m-sub">客製、非標規格現場開單，不佔庫存</div>
+    <div class="custom-field"><label>品名</label><input type="text" id="customName" placeholder="例：客製題字 福"></div>
+    <div class="custom-field"><label>金額</label><input type="number" id="customPrice" inputmode="numeric" placeholder="0"></div>
+    <div class="modal-btns">
+      <button class="cancel" id="customCancel">取消</button>
+      <button class="ok" id="customAdd">加入購物車</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -667,7 +692,6 @@
     const list = products.filter(p=> !p.off && (activeCat==="全部" || p.category===activeCat));
     if (!list.length){
       grid.innerHTML = '<div class="empty-hint">這個分類還沒有商品。<br>到「商品管理」新增吧。</div>';
-      return;
     }
     list.forEach(p=>{
       const card = document.createElement("div");
@@ -681,6 +705,12 @@
       card.onclick = ()=> addToCart(p);
       grid.appendChild(card);
     });
+    // 自訂品項卡（客製、非標規格現場開單，always 顯示）
+    const custom = document.createElement("div");
+    custom.className = "product-card custom-card";
+    custom.innerHTML = '<div class="cc-plus">＋</div><div class="cc-text">自訂品項</div><div class="cc-sub">客製 / 非標規格</div>';
+    custom.onclick = openCustomModal;
+    grid.appendChild(custom);
   }
 
   function addToCart(p){
@@ -691,6 +721,27 @@
     else cart.push({ id:p.id, name:p.name, price:p.price, qty:1 });
     renderCart();
   }
+
+  // 自訂品項（客製、非標規格；不綁庫存）
+  function openCustomModal(){
+    const nm = document.getElementById("customName"); nm.value=""; nm.classList.remove("confirmed");
+    const pr = document.getElementById("customPrice"); pr.value=""; pr.classList.remove("confirmed");
+    document.getElementById("customModal").classList.add("show");
+    setTimeout(()=>nm.focus(), 50);
+  }
+  function addCustomToCart(){
+    const name = document.getElementById("customName").value.trim();
+    const price = parseFloat(document.getElementById("customPrice").value);
+    if (!name){ toast("請輸入品名"); return; }
+    if (isNaN(price) || price<0){ toast("請輸入金額"); return; }
+    cart.push({ id:"custom-"+uid(), name:name, price:price, qty:1, custom:true });
+    document.getElementById("customModal").classList.remove("show");
+    renderCart();
+    toast("已加入「"+name+"」"+money(price));
+  }
+  document.getElementById("customCancel").onclick = ()=> document.getElementById("customModal").classList.remove("show");
+  document.getElementById("customAdd").onclick = addCustomToCart;
+  bindTwoStage(document.getElementById("customPrice"), ()=> addCustomToCart());
 
   function renderCart(){
     const wrap = document.getElementById("cartItems");

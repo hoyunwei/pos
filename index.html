@@ -248,6 +248,23 @@
   .modal-btns .cancel { background: var(--paper); color: var(--ink-soft); }
   .modal-btns .ok { background: var(--green); color: #fff; }
   .modal-btns .ok:disabled { opacity: 0.4; }
+  .modal-btns .danger { background: #fbeae6; color: var(--vermilion); }
+
+  /* 修改訂單 modal */
+  .order-row { cursor: pointer; }
+  .order-row:hover { background: #faf6ee; }
+  .edit-hint { color: var(--ink-soft); font-size: 13px; margin-left: 2px; }
+  .edit-items { max-height: 40vh; overflow-y: auto; border-top: 1px solid var(--line); margin-top: 6px; }
+  .edit-item { display: flex; align-items: center; gap: 8px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+  .edit-item .ei-name { flex: 1; min-width: 0; }
+  .edit-item .ei-name b { font-size: 15px; display: block; }
+  .edit-item .ei-name span { font-size: 13px; color: var(--ink-soft); }
+  .edit-item .ei-sub { width: 56px; text-align: right; font-size: 15px; font-weight: 700; }
+  .edit-item .ei-del { background: none; border: none; color: var(--vermilion); font-size: 18px; cursor: pointer; padding: 0 2px; }
+  .edit-pay { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; flex-wrap: wrap; }
+  .edit-pay .ep-label { font-size: 14px; color: var(--ink-soft); font-weight: 600; }
+  .ep-btn { font-size: 15px; font-weight: 700; padding: 9px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink-soft); cursor: pointer; }
+  .ep-btn.sel { background: var(--green); color: #fff; border-color: var(--green); }
 
   /* Toast */
   #toast {
@@ -481,6 +498,35 @@
     <div class="modal-btns">
       <button class="cancel" id="cashCancel">取消</button>
       <button class="ok" id="cashConfirm" disabled>完成結帳</button>
+    </div>
+  </div>
+</div>
+
+<!-- 修改訂單 Modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3>修改訂單</h3>
+    <div class="m-sub" id="editTime"></div>
+    <div class="edit-items" id="editItems"></div>
+    <div class="discount-box" style="margin:12px 0">
+      <select id="editDiscType">
+        <option value="none">不折扣</option>
+        <option value="amount">減金額</option>
+        <option value="percent">打折 %</option>
+      </select>
+      <input type="number" id="editDiscValue" inputmode="numeric" placeholder="輸入數字" disabled>
+    </div>
+    <div class="sum-row"><span>小計</span><span id="editSubtotal">$0</span></div>
+    <div class="total-row"><span class="lab">應收</span><span class="val" id="editTotal">$0</span></div>
+    <div class="edit-pay">
+      <span class="ep-label">付款方式</span>
+      <button class="ep-btn" data-pay="cash">現金</button>
+      <button class="ep-btn" data-pay="line">LINE Pay</button>
+    </div>
+    <div class="modal-btns">
+      <button class="danger" id="editDelete">刪除整筆</button>
+      <button class="cancel" id="editCancel">取消</button>
+      <button class="ok" id="editSave">儲存修改</button>
     </div>
   </div>
 </div>
@@ -1037,7 +1083,7 @@
         const combo = s.items.map(it=> esc(it.name)+' ×'+it.qty).join("、");
         const disc = s.discountType==="none" ? "—" : (s.discountType==="amount" ? "減 "+s.discountValue : (s.discountValue+" 折"));
         const pay = s.payment==="cash" ? "現金" : "LINE Pay";
-        return '<tr><td class="num">'+(daySales.length-idx)+'</td><td>'+tstr+'</td><td>'+combo+'</td><td class="num">'+disc+'</td><td class="num">'+money(s.total)+'</td><td>'+pay+'</td></tr>';
+        return '<tr class="order-row" data-id="'+s.id+'"><td class="num">'+(daySales.length-idx)+'</td><td>'+tstr+'</td><td>'+combo+'</td><td class="num">'+disc+'</td><td class="num">'+money(s.total)+'</td><td>'+pay+' <span class="edit-hint">✎</span></td></tr>';
       }).join("");
     }
 
@@ -1053,6 +1099,102 @@
       : '<tr><td colspan="3" style="text-align:center;color:var(--ink-soft);padding:20px">還沒有商品</td></tr>';
   }
   function card(cls, lab, val){ return '<div class="rcard '+cls+'"><div class="rlab">'+lab+'</div><div class="rval">'+val+'</div></div>'; }
+
+  // ---------- 修改 / 刪除訂單 ----------
+  let editWork = null;
+  function calcTotal(items, discType, discValue){
+    const sub = items.reduce((s,c)=>s+c.price*c.qty, 0);
+    let discAmt = 0;
+    if (discType==="amount") discAmt = Math.min(discValue||0, sub);
+    else if (discType==="percent"){ const pct=Math.max(0,Math.min(100,discValue||0)); discAmt = sub*(1-pct/100); }
+    return { sub, total: Math.max(0, sub-discAmt) };
+  }
+  function restoreStock(sale){ sale.items.forEach(it=>{ const p=products.find(x=>x.id===it.id); if(p){ p.stock += it.qty; p.sold = Math.max(0,(p.sold||0)-it.qty); } }); }
+
+  document.getElementById("orderBody").addEventListener("click", e=>{
+    const tr = e.target.closest(".order-row"); if(!tr) return;
+    openEditOrder(tr.dataset.id);
+  });
+
+  function openEditOrder(saleId){
+    const s = sales.find(x=>x.id===saleId); if(!s) return;
+    editWork = {
+      saleId: s.id,
+      items: s.items.map(it=>({ id:it.id, name:it.name, price:it.price, qty:it.qty })),
+      discType: s.discountType || "none",
+      discValue: s.discountValue || 0,
+      payment: s.payment
+    };
+    const t = new Date(s.ts); const p=n=>String(n).padStart(2,"0");
+    document.getElementById("editTime").textContent = "成立 "+p(t.getHours())+":"+p(t.getMinutes())+"　改完按儲存，庫存會自動重算";
+    const dt = document.getElementById("editDiscType"); dt.value = editWork.discType;
+    const dv = document.getElementById("editDiscValue"); dv.value = editWork.discType==="none"?"":editWork.discValue; dv.disabled = editWork.discType==="none";
+    renderEditItems(); updateEditTotals(); updateEditPay();
+    document.getElementById("editModal").classList.add("show");
+  }
+  function renderEditItems(){
+    const wrap = document.getElementById("editItems");
+    if (!editWork.items.length){ wrap.innerHTML = '<div style="padding:16px;text-align:center;color:var(--ink-soft);font-size:14px">沒有品項了，按「儲存修改」等於刪掉這筆</div>'; return; }
+    wrap.innerHTML = "";
+    editWork.items.forEach(c=>{
+      const row = document.createElement("div"); row.className="edit-item";
+      row.innerHTML =
+        '<div class="ei-name"><b>'+esc(c.name)+'</b><span>'+money(c.price)+'</span></div>'+
+        '<div class="qty-ctrl"><button class="minus">－</button><span class="qv">'+c.qty+'</span><button class="plus">＋</button></div>'+
+        '<div class="ei-sub">'+money(c.price*c.qty)+'</div>'+
+        '<button class="ei-del">✕</button>';
+      row.querySelector(".minus").onclick=()=>{ c.qty--; if(c.qty<=0) editWork.items=editWork.items.filter(x=>x!==c); renderEditItems(); updateEditTotals(); };
+      row.querySelector(".plus").onclick=()=>{ c.qty++; renderEditItems(); updateEditTotals(); };
+      row.querySelector(".ei-del").onclick=()=>{ editWork.items=editWork.items.filter(x=>x!==c); renderEditItems(); updateEditTotals(); };
+      wrap.appendChild(row);
+    });
+  }
+  function updateEditTotals(){
+    const r = calcTotal(editWork.items, editWork.discType, editWork.discValue);
+    document.getElementById("editSubtotal").textContent = money(r.sub);
+    document.getElementById("editTotal").textContent = money(r.total);
+  }
+  function updateEditPay(){ document.querySelectorAll("#editModal .ep-btn").forEach(b=> b.classList.toggle("sel", b.dataset.pay===editWork.payment)); }
+
+  document.getElementById("editDiscType").addEventListener("change", e=>{
+    editWork.discType = e.target.value;
+    const inp = document.getElementById("editDiscValue");
+    inp.disabled = (e.target.value==="none");
+    if (e.target.value==="none"){ inp.value=""; editWork.discValue=0; }
+    inp.placeholder = e.target.value==="percent" ? "例：90 = 九折" : "輸入金額";
+    updateEditTotals();
+  });
+  document.getElementById("editDiscValue").addEventListener("input", e=>{ editWork.discValue = parseFloat(e.target.value)||0; updateEditTotals(); });
+  document.querySelectorAll("#editModal .ep-btn").forEach(b=> b.onclick=()=>{ editWork.payment=b.dataset.pay; updateEditPay(); });
+  document.getElementById("editCancel").onclick=()=> document.getElementById("editModal").classList.remove("show");
+
+  document.getElementById("editSave").onclick=()=>{
+    const s = sales.find(x=>x.id===editWork.saleId);
+    if(!s){ document.getElementById("editModal").classList.remove("show"); return; }
+    restoreStock(s);                                  // 先把原訂單庫存加回
+    if (!editWork.items.length){                       // 改成空＝刪除
+      sales = sales.filter(x=>x!==s);
+      save(K_PROD,products); save(K_SALES,sales);
+      document.getElementById("editModal").classList.remove("show"); renderReport();
+      toast("已刪除訂單，庫存已還原"); return;
+    }
+    editWork.items.forEach(c=>{ const p=products.find(x=>x.id===c.id); if(p){ p.stock=Math.max(0,p.stock-c.qty); p.sold=(p.sold||0)+c.qty; } });
+    const r = calcTotal(editWork.items, editWork.discType, editWork.discValue);
+    s.items = editWork.items.map(c=>({id:c.id,name:c.name,price:c.price,qty:c.qty}));
+    s.subtotal = r.sub; s.discountType = editWork.discType; s.discountValue = editWork.discValue;
+    s.total = r.total; s.payment = editWork.payment;
+    if (s.payment!=="cash") delete s.cashGot;
+    save(K_PROD,products); save(K_SALES,sales);
+    document.getElementById("editModal").classList.remove("show"); renderReport();
+    toast("訂單已更新，庫存已重算");
+  };
+  document.getElementById("editDelete").onclick=()=>{
+    if (!confirm("刪除整筆訂單？已扣的庫存會加回來。")) return;
+    const s = sales.find(x=>x.id===editWork.saleId);
+    if(s){ restoreStock(s); sales = sales.filter(x=>x!==s); save(K_PROD,products); save(K_SALES,sales); }
+    document.getElementById("editModal").classList.remove("show"); renderReport();
+    toast("已刪除訂單，庫存已還原");
+  };
 
   document.getElementById("exportCsv").onclick = ()=>{
     const day = document.getElementById("reportDate").value || todayStr();

@@ -59,6 +59,21 @@
   .view { display: none; height: 100%; }
   .view.active { display: flex; }
 
+  /* ===== 操作說明 ===== */
+  #view-help { overflow: auto; }
+  .help-wrap { max-width: 720px; margin: 0 auto; padding: 20px 18px 60px; width: 100%; }
+  .help-title { font-size: 22px; color: var(--vermilion); margin: 4px 0 6px; }
+  .help-sub { font-size: 15px; color: var(--ink); opacity: .75; margin: 0 0 18px; }
+  .help-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 16px 18px; margin-bottom: 16px; }
+  .help-card h3 { font-size: 18px; color: var(--ink); margin: 0 0 10px; }
+  .help-card ol, .help-card ul { margin: 0; padding-left: 22px; }
+  .help-card li { font-size: 15px; line-height: 1.85; color: var(--ink); }
+  .help-card p { font-size: 15px; line-height: 1.7; color: var(--ink); margin: 0 0 8px; }
+  .help-card b { color: var(--vermilion); }
+  .help-warn { border-color: var(--vermilion); background: #fdf1ee; }
+  .help-warn h3 { color: var(--vermilion); }
+
   /* ===== 收銀台 ===== */
   #view-pos { flex-direction: row; }
   .pos-left { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -389,6 +404,7 @@
     <button data-view="pos" class="active">收銀台</button>
     <button data-view="prod">商品管理</button>
     <button data-view="report">日結報表</button>
+    <button data-view="help">操作說明</button>
   </nav>
 </header>
 
@@ -493,6 +509,61 @@
       <h3>剩餘庫存清單</h3>
       <div class="table-scroll"><table class="prod-table"><thead><tr><th>品名</th><th>分類</th><th class="num">剩餘</th></tr></thead>
         <tbody id="stockBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ===== 操作說明 ===== -->
+  <section id="view-help" class="view">
+    <div class="help-wrap">
+      <h2 class="help-title">操作說明 · 給第一次顧攤的夥伴</h2>
+      <p class="help-sub">看這頁就會收銀了，照著做就好，不用緊張 🙂</p>
+
+      <div class="help-card">
+        <h3>① 賣一筆東西（最常用）</h3>
+        <ol>
+          <li>在「收銀台」點左邊的商品 → 會自動加進右邊購物車</li>
+          <li>數量不對，就在購物車那筆按 ＋ / − 調整</li>
+          <li>按「現金結帳」或「LINE Pay」</li>
+          <li>收錢、找錢 → 完成，庫存會自動扣掉</li>
+        </ol>
+      </div>
+
+      <div class="help-card">
+        <h3>② 收款怎麼收</h3>
+        <ul>
+          <li><b>現金</b>：在欄位輸入客人給的金額，系統會自動算「要找多少」</li>
+          <li><b>LINE Pay</b>：請客人掃碼，<b>確認到帳後</b>再按完成</li>
+        </ul>
+      </div>
+
+      <div class="help-card">
+        <h3>③ 按錯、算錯怎麼救</h3>
+        <p>別慌，可以改！</p>
+        <ol>
+          <li>點上方「日結報表」</li>
+          <li>找到那筆訂單，點它</li>
+          <li>可以改數量、刪某個品項、或整筆刪掉</li>
+          <li>改完庫存會自動還原，不會算錯</li>
+        </ol>
+      </div>
+
+      <div class="help-card help-warn">
+        <h3>④ ⚠️ 這些請不要碰</h3>
+        <ul>
+          <li>不要進「商品管理」改商品、價格、庫存</li>
+          <li>不要按「匯入 / 匯出 JSON」</li>
+          <li>不要用無痕視窗、不要清除瀏覽器資料（<b>資料會不見！</b>）</li>
+          <li>遇到解決不了的狀況 → 直接問小何</li>
+        </ul>
+      </div>
+
+      <div class="help-card">
+        <h3>⑤ 開攤 / 收攤檢查</h3>
+        <ul>
+          <li><b>開攤前</b>：確認商品都在、價格正確</li>
+          <li><b>收攤後</b>：到商品管理按「匯出全部備份 JSON」存一份，以防萬一</li>
+        </ul>
+      </div>
     </div>
   </section>
 </main>
@@ -1087,7 +1158,7 @@
         const incoming = Array.isArray(data) ? data : data.products;
         if (!Array.isArray(incoming)) throw new Error("格式不符");
         if (!confirm("匯入會「覆蓋」目前的商品清單（共 "+incoming.length+" 項）。確定？")) return;
-        products = incoming.map(p=>({ id:p.id||uid(), name:p.name, category:p.category||"未分類", price:+p.price||0, stock:+p.stock||0, sold:+p.sold||0, off:!!p.off }));
+        products = incoming.map(p=>({ id:p.id||uid(), name:p.name, category:p.category||"未分類", price:+p.price||0, stock:+p.stock||0, sold:+p.sold||0, off:!!p.off, ...(p.img ? {img:p.img} : {}) }));
         if (data.categories && Array.isArray(data.categories)) settings.categories = data.categories;
         // 補進未知分類
         products.forEach(p=>{ if(p.category && !settings.categories.includes(p.category)) settings.categories.push(p.category); });

@@ -90,6 +90,7 @@
     flex: 1; overflow-y: auto; padding: 10px 16px 20px;
     display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 12px; align-content: start;
+    grid-auto-rows: max-content;   /* 列高依內容（沒這行卡片會被壓扁／重疊） */
   }
   .product-card {
     background: var(--card); border: 1px solid var(--line); border-radius: 14px;
@@ -99,7 +100,7 @@
   }
   .product-card:active { transform: scale(0.96); }
   .product-card .pimg {
-    height: 110px; border-radius: 9px; background: var(--paper); margin-bottom: 2px;
+    height: 110px; flex-shrink: 0; border-radius: 9px; background: var(--paper); margin-bottom: 2px;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
   }
   .product-card .pimg img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -306,11 +307,13 @@
   /* ===================== 手機版（窄螢幕） ===================== */
   @media (max-width: 700px) {
     /* 頂部：縮小、時鐘隱藏、按鈕不擠 */
-    header { padding: 8px 12px; gap: 8px; }
-    header .brand { font-size: 15px; }
+    header { padding: 8px 10px; gap: 6px; }
+    header .brand { font-size: 15px; white-space: nowrap; }
+    header .brand .seal { margin-right: 0; }
+    header .brand .brand-text { display: none; }   /* 窄螢幕只留印章，把空間讓給按鈕 */
     header .clock { display: none; }
     header nav { gap: 4px; }
-    header nav button { font-size: 13px; padding: 7px 10px; }
+    header nav button { font-size: 13px; padding: 7px 9px; white-space: nowrap; }
 
     /* 收銀台：商品滿版兩欄 */
     #view-pos { flex-direction: column; }
@@ -318,7 +321,6 @@
     .cat-tabs { padding: 10px 12px 4px; }
     .product-grid {
       grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px 12px 86px;
-      align-items: start;
     }
     .product-card { min-height: 84px; padding: 12px 10px; }
     .product-card .pimg { height: 88px; }
@@ -398,7 +400,7 @@
 <body>
 
 <header>
-  <div class="brand"><span class="seal">筆</span>文博會收銀台</div>
+  <div class="brand"><span class="seal">筆</span><span class="brand-text">文博會收銀台</span></div>
   <span class="clock" id="clock"></span>
   <nav>
     <button data-view="pos" class="active">收銀台</button>

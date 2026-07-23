@@ -99,6 +99,12 @@
     transition: transform 0.06s;
   }
   .product-card:active { transform: scale(0.96); }
+  .cat-tabs button .tab-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .cat-tabs button.active .tab-dot { background: #fff !important; }
+  .product-card .pcat {
+    align-self: flex-start; font-size: 11px; font-weight: 700; line-height: 1;
+    padding: 4px 8px; border-radius: 20px; margin-bottom: 2px;
+  }
   .product-card .pimg {
     height: 110px; flex-shrink: 0; border-radius: 9px; background: var(--paper); margin-bottom: 2px;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
@@ -666,6 +672,24 @@
     reader.readAsDataURL(file);
   }
 
+  // 分類代表色（與商品佔位圖同一套配色）：[深色=文字/色帶, 淺色=底]
+  const CAT_COLORS = {
+    "明信片":     ["#c2706a", "#f3e0dd"],
+    "A4海報":     ["#5d84ad", "#dde8f3"],
+    "細長海報":   ["#5d9166", "#dcecdd"],
+    "貼紙":       ["#b5892c", "#f7ecd4"],
+    "造型卡":     ["#8f6aa0", "#ece0f1"],
+    "書籤":       ["#4f93aa", "#dcecf3"],
+    "L夾":        ["#9c8348", "#f1e9d8"],
+    "冰箱貼":     ["#bd5f5f", "#f5dede"],
+    "帆布袋":     ["#77776a", "#e6e6df"],
+    "水晶貼":     ["#4ea394", "#d9f0eb"],
+    "凸版明信片": ["#9c7a45", "#f0e6d6"],
+    "凸版方形":   ["#7a6ea8", "#e6e2f2"]
+  };
+  const CAT_FALLBACK = ["#7b736a", "#eae6e0"];
+  function catColor(c){ return CAT_COLORS[c] || CAT_FALLBACK; }
+
   // 預設商品（第一次開啟時自動帶入；之後改的都以你裝置上的為準，不會被蓋回）
   // 來源：600_Project/商品管理/三支筆商品營運管理.xlsx →「文博商品清單」分頁（庫存取「總庫存」欄）
   const SEED_CATS = ["明信片", "A4海報", "細長海報", "貼紙", "造型卡", "書籤", "L夾", "冰箱貼", "帆布袋", "水晶貼", "凸版明信片", "凸版方形"];
@@ -796,7 +820,15 @@
     wrap.innerHTML = "";
     cats.forEach(c=>{
       const b = document.createElement("button");
-      b.textContent = c; if (c===activeCat) b.classList.add("active");
+      if (c === "全部"){
+        b.textContent = c;
+      } else {
+        const [dark, light] = catColor(c);
+        b.innerHTML = '<span class="tab-dot" style="background:'+dark+'"></span>'+esc(c);
+        if (c === activeCat){ b.style.background = dark; b.style.borderColor = dark; b.style.color = "#fff"; }
+        else { b.style.background = light; b.style.borderColor = light; b.style.color = dark; }
+      }
+      if (c===activeCat) b.classList.add("active");
       b.onclick = ()=>{ activeCat = c; renderCatTabs(); renderGrid(); };
       wrap.appendChild(b);
     });
@@ -813,7 +845,10 @@
       const card = document.createElement("div");
       card.className = "product-card" + (p.stock<=0 ? " out" : "");
       const lowCls = (p.stock>0 && p.stock<=3) ? " low" : "";
+      const [cDark, cLight] = catColor(p.category);
+      card.style.borderTop = "4px solid " + cDark;   // 分類色帶
       card.innerHTML =
+        (activeCat==="全部" ? '<div class="pcat" style="color:'+cDark+';background:'+cLight+'">'+esc(p.category)+'</div>' : '')+
         (p.img ? '<div class="pimg"><img src="'+p.img+'" alt=""></div>' : '')+
         '<div class="pname">'+esc(p.name)+'</div>'+
         '<div class="pstock'+lowCls+'">'+(p.stock<=0 ? "已售完" : "剩 "+p.stock+" 件")+'</div>'+

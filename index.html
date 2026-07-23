@@ -685,14 +685,13 @@
     "帆布袋": ["#77776a", "#e6e6df"],
     "書籤": ["#4f93aa", "#dcecf3"],
     "水晶貼": ["#4ea394", "#d9f0eb"],
-    "未設定": ["#7b736a", "#eae6e0"],
   };
   const CAT_FALLBACK = ["#7b736a", "#eae6e0"];
   function catColor(c){ return CAT_COLORS[c] || CAT_FALLBACK; }
 
   // 預設商品（第一次開啟時自動帶入；之後改的都以你裝置上的為準，不會被蓋回）
   // 來源：600_Project/商品管理/三支筆商品營運管理.xlsx →「文博商品清單」分頁（庫存取「總庫存」欄）
-  const SEED_CATS = ["明信片：一般", "明信片：凸版", "海報：A4", "海報：細長", "造型卡", "貼紙", "冰箱貼", "L夾", "帆布袋", "書籤", "水晶貼", "未設定"];
+  const SEED_CATS = ["明信片：一般", "明信片：凸版", "海報：A4", "海報：細長", "造型卡", "貼紙", "冰箱貼", "L夾", "帆布袋", "書籤", "水晶貼"];
   function buildSeed(){
     return [
       {id:"MC2401",name:"平安",category:"明信片：一般",price:50,stock:37,sold:0},

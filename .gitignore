@@ -6,3 +6,5 @@
 舊檔備份/
 .DS_Store
 *.zip
+*.jpeg
+seed_snippet.txt

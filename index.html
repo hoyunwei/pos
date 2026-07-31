@@ -833,33 +833,64 @@
   // 沒商品時給範例分類
   if (!settings.categories || !settings.categories.length) settings.categories = SEED_CATS.slice();
 
-  // ---------- 定價修補（給「已經用過、localStorage 有舊資料」的裝置） ----------
-  // seed 只在第一次開啟生效，之後不會覆蓋。這段負責把主檔改過的價格補上去。
-  // 庫存只在「目前還是 0」時才補，不會蓋掉現場盤點過的數字。
+  // ---------- 資料修補（給「已經用過、localStorage 有舊資料」的裝置） ----------
+  // seed 只在第一次開啟生效，之後不會覆蓋，所以舊裝置會卡在舊商品清單。
+  // 這段負責把裝置追上主檔：改價、補缺的商品、淘汰不賣的、遷移舊分類名。
+  // 原則：不動小何在現場調過的庫存與已售數字。
   const K_PATCH = "pos_patch_ver";
-  const PATCH_VER = 2;   // 2026-07-31：對齊營運管理 xlsx「文博商品清單」
-  const PRICE_FIX = {
-    "LP2611": { price: 250 },                    // 凸版方形 180 → 250
-    "LP2612": { price: 250 },
-    "DC2601": { price: 60 },                     // 花生好事造型卡 80 → 60
-    "DC2602": { price: 100 },                    // 囍造型卡 80 → 100
-    "DC2603": { price: 100 },
-    "ST2601": { stockIfZero: 440 },              // 貼紙 10 大張 × 44
-    "BM2601": { price: 29, stockIfZero: 500 },   // 書籤：贈品／$29 加購
-    "TB2601": { price: 450, stockIfZero: 10 },
+  const PATCH_VER = 3;   // 2026-07-31：對齊營運管理 xlsx「文博商品清單」
+  // 7-23 版的舊分類名 → 現行名（沒遷移的話新舊分類會並存，tab 會重複）
+  const CAT_RENAME = {
+    "明信片：一般": "明信片", "明信片：凸版": "凸版明信片",
+    "海報：A4": "A4海報", "海報：細長": "細長海報",
   };
+  // 今年不賣了，但裝置上可能還留著（標停售不刪除，商品管理可自行恢復）
+  const RETIRED_IDS = [
+    "CS2601",    // 舊的單筆水晶貼（$0／庫存 0），已拆成 CS2601-S/M/L
+    "ST2601-3",  // 舊的「全斷貼紙 3 張組」，改由自動優惠處理
+    "MC2508",    // 好好吃飯慢慢生活明信片，今年主檔沒帶
+  ];
   (function applyPatch(){
     if (firstRun){ save(K_PATCH, PATCH_VER); return; }   // seed 已是新值
     if ((+load(K_PATCH, 0)) >= PATCH_VER) return;
-    let changed = 0;
-    Object.keys(PRICE_FIX).forEach(id=>{
-      const p = products.find(x=>x.id===id); if (!p) return;
-      const fix = PRICE_FIX[id];
-      if (fix.price != null && p.price !== fix.price){ p.price = fix.price; changed++; }
-      if (fix.stockIfZero != null && !p.stock){ p.stock = fix.stockIfZero; changed++; }
+    const notes = [];
+
+    // 1) 舊分類名 → 現行名（順便帶著商品一起改）
+    let renamed = 0;
+    products.forEach(p=>{ if (CAT_RENAME[p.category]){ p.category = CAT_RENAME[p.category]; renamed++; } });
+    if (renamed) notes.push("分類更名 "+renamed+" 項");
+
+    // 2) 對齊主檔：缺的商品補進來，既有的把品名／分類／定價追上
+    //    庫存只在「還沒賣過（sold=0）」時才跟著更新——已經在賣的以現場數字為準。
+    //    圖片、停售狀態一律保留。
+    let added = 0, aligned = 0;
+    buildSeed().forEach(sp=>{
+      const p = products.find(x=>x.id===sp.id);
+      if (!p){ products.push(Object.assign({}, sp)); added++; return; }
+      let touched = false;
+      if (p.name !== sp.name){ p.name = sp.name; touched = true; }
+      if (p.category !== sp.category){ p.category = sp.category; touched = true; }
+      if (p.price !== sp.price){ p.price = sp.price; touched = true; }
+      if (!(p.sold > 0) && p.stock !== sp.stock){ p.stock = sp.stock; touched = true; }
+      if (touched) aligned++;
     });
-    save(K_PROD, products); save(K_PATCH, PATCH_VER);
-    if (changed) setTimeout(()=> toast("已套用最新定價／庫存修正（"+changed+" 處）"), 600);
+    if (added) notes.push("補上新商品 "+added+" 款");
+    if (aligned) notes.push("對齊主檔 "+aligned+" 款");
+
+    // 3) 淘汰今年不賣的舊品項
+    let retired = 0;
+    RETIRED_IDS.forEach(id=>{
+      const p = products.find(x=>x.id===id);
+      if (p && !p.off){ p.off = true; retired++; }
+    });
+    if (retired) notes.push("停售舊品項 "+retired+" 款");
+
+    // 4) 重建分類清單：照現行順序排，她自己加的分類（還有商品的）留在後面
+    const extra = (settings.categories||[]).filter(c=> !SEED_CATS.includes(c) && products.some(p=>p.category===c));
+    settings.categories = SEED_CATS.concat(extra);
+
+    save(K_PROD, products); save(K_SET, settings); save(K_PATCH, PATCH_VER);
+    if (notes.length) setTimeout(()=> toast("商品資料已更新："+notes.join("、")), 600);
   })();
 
   let cart = [];            // {id, name, price, qty}

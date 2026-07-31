@@ -151,6 +151,26 @@
   }
   .discount-box select { flex-shrink: 0; }
   .discount-box input { flex: 1; min-width: 0; }
+  /* 自動優惠明細 */
+  .sum-row.promo { color: var(--green-dark); font-weight: 700; }
+  .sum-row.manual { color: var(--gold); font-weight: 700; }
+  #promoList:not(:empty) { margin: 2px 0 4px; }
+
+  /* 滿額贈提示 */
+  .gift-banner { display: none; align-items: center; gap: 8px; font-size: 14px;
+    border-radius: 10px; padding: 9px 12px; margin-bottom: 8px; font-weight: 700; }
+  .gift-banner:not(:empty) { display: flex; }
+  .gift-banner.hit { background: #e5f4ea; color: var(--green-dark); border: 1px solid #b9dfc7; }
+  .gift-banner.done { background: #eef1ee; color: var(--ink-soft); border: 1px solid var(--line); }
+  .gift-banner.near { background: #fbf6e9; color: #8a6d1f; border: 1px solid #ecdfba; font-weight: 600; }
+  .gift-banner.near b { color: var(--vermilion); }
+  .gift-banner button { margin-left: auto; font-size: 14px; font-weight: 700; padding: 8px 14px;
+    border: none; border-radius: 9px; background: var(--green); color: #fff; cursor: pointer; flex-shrink: 0; }
+  .addon-btn { width: 100%; font-size: 14px; font-weight: 700; padding: 11px 0; margin-bottom: 10px;
+    border: 1px dashed var(--gold); border-radius: 10px; background: #fdfaf2; color: #8a6d1f;
+    cursor: pointer; font-family: inherit; }
+  .addon-btn:active { background: #f7efdc; }
+
   .total-row { display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0; }
   .total-row .lab { font-size: 16px; font-weight: 700; }
   .total-row .val { font-size: 30px; font-weight: 800; color: var(--vermilion); }
@@ -429,6 +449,7 @@
       <div class="cart-items" id="cartItems"></div>
       <div class="cart-foot">
         <div class="sum-row"><span>小計</span><span id="subtotal">$0</span></div>
+        <div id="promoList"></div>
         <div class="discount-box">
           <select id="discType">
             <option value="none">不折扣</option>
@@ -438,6 +459,8 @@
           <input type="number" id="discValue" inputmode="numeric" placeholder="輸入數字" disabled>
         </div>
         <div class="total-row"><span class="lab">應收</span><span class="val" id="grandTotal">$0</span></div>
+        <div class="gift-banner" id="giftBanner"></div>
+        <button class="addon-btn" id="addonBookmark">＋ $29 加購透卡書籤</button>
         <div class="pay-btns">
           <button class="pay-cash" id="payCash" disabled>現金結帳</button>
           <button class="pay-line" id="payLine" disabled>LINE Pay</button>
@@ -497,12 +520,19 @@
   <section id="view-report" class="view">
     <div class="panel-title">日結報表
       <input type="date" id="reportDate" class="date-pick">
+      <button class="btn" id="allDaysBtn">全展期合計</button>
       <div class="actions">
-        <button class="btn" id="exportCsv">匯出 CSV</button>
+        <button class="btn" id="exportCsv">匯出訂單 CSV</button>
+        <button class="btn" id="exportItemCsv">匯出品項銷量 CSV</button>
         <button class="btn" id="exportAll">匯出全部備份 JSON</button>
       </div>
     </div>
     <div class="report-cards" id="reportCards"></div>
+    <div class="report-section">
+      <h3>各優惠規則使用次數</h3>
+      <div class="table-scroll"><table class="prod-table"><thead><tr><th>優惠規則</th><th class="num">使用組數</th><th class="num">出現訂單數</th><th class="num">折抵金額</th></tr></thead>
+        <tbody id="promoBody"></tbody></table></div>
+    </div>
     <div class="report-section">
       <h3>每筆訂單明細</h3>
       <div class="table-scroll"><table class="prod-table"><thead><tr><th class="num">#</th><th>時間</th><th>品項組合</th><th class="num">折扣</th><th class="num">應收</th><th>付款</th></tr></thead>
@@ -537,7 +567,30 @@
       </div>
 
       <div class="help-card">
-        <h3>② 收款怎麼收</h3>
+        <h3>② 優惠系統會自動算，你不用心算 🎉</h3>
+        <p>東西加進購物車，符合的優惠會<b>自動跳出來</b>並扣好金額，購物車下方會寫「套用了什麼優惠、折了多少」，可以直接唸給客人聽。</p>
+        <ul>
+          <li><b>紙品任選 3 件 8 折</b>：明信片、凸版明信片、細長海報、A4 海報、凸版方形，可以混搭湊件</li>
+          <li><b>水晶貼任選 3 片 8 折</b>：大中小可以互相湊</li>
+          <li><b>貼紙 3 張 $50</b>（原價 60）</li>
+          <li><b>L 夾 2 個 $180</b>（原價 200）</li>
+          <li><b>冰箱貼不打折</b>，維持原價</li>
+        </ul>
+        <p>湊不滿一組的餘數自動算原價，折扣一定套在<b>比較貴的那幾件</b>，對客人最有利。</p>
+      </div>
+
+      <div class="help-card">
+        <h3>③ 書籤：滿額送 ／ $29 加購</h3>
+        <ul>
+          <li>應收滿 <b>$300</b> → 購物車跳綠色提示「可送書籤 1 張」，<b>真的拿給客人後再按「已送出」</b>（庫存才會扣對）</li>
+          <li>還沒滿 $300 會顯示「再 $XX 就送書籤」→ 可以直接拿來跟客人湊單</li>
+          <li>客人想多要書籤：按「＋ $29 加購透卡書籤」，按幾次就幾張</li>
+          <li>加購的 $29 <b>不算進</b>滿 $300 的門檻</li>
+        </ul>
+      </div>
+
+      <div class="help-card">
+        <h3>④ 收款怎麼收</h3>
         <ul>
           <li><b>現金</b>：在欄位輸入客人給的金額，系統會自動算「要找多少」</li>
           <li><b>LINE Pay</b>：請客人掃碼，<b>確認到帳後</b>再按完成</li>
@@ -545,7 +598,7 @@
       </div>
 
       <div class="help-card">
-        <h3>③ 按錯、算錯怎麼救</h3>
+        <h3>⑤ 按錯、算錯怎麼救</h3>
         <p>別慌，可以改！</p>
         <ol>
           <li>點上方「日結報表」</li>
@@ -556,7 +609,7 @@
       </div>
 
       <div class="help-card help-warn">
-        <h3>④ ⚠️ 這些請不要碰</h3>
+        <h3>⑥ ⚠️ 這些請不要碰</h3>
         <ul>
           <li>不要進「商品管理」改商品、價格、庫存</li>
           <li>不要按「匯入 / 匯出 JSON」</li>
@@ -566,7 +619,7 @@
       </div>
 
       <div class="help-card">
-        <h3>⑤ 開攤 / 收攤檢查</h3>
+        <h3>⑦ 開攤 / 收攤檢查</h3>
         <ul>
           <li><b>開攤前</b>：確認商品都在、價格正確</li>
           <li><b>收攤後</b>：到商品管理按「匯出全部備份 JSON」存一份，以防萬一</li>
@@ -607,6 +660,7 @@
       <input type="number" id="editDiscValue" inputmode="numeric" placeholder="輸入數字" disabled>
     </div>
     <div class="sum-row"><span>小計</span><span id="editSubtotal">$0</span></div>
+    <div id="editPromoList"></div>
     <div class="total-row"><span class="lab">應收</span><span class="val" id="editTotal">$0</span></div>
     <div class="edit-pay">
       <span class="ep-label">付款方式</span>
@@ -714,8 +768,8 @@
       {id:"LP2608",name:"今天也會是美好的一天",category:"凸版明信片",price:80,stock:50,sold:0},
       {id:"LP2609",name:"花生好事",category:"凸版明信片",price:80,stock:50,sold:0},
       {id:"LP2610",name:"日富一日",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2611",name:"花花暖居",category:"凸版方形",price:180,stock:50,sold:0},
-      {id:"LP2612",name:"家",category:"凸版方形",price:180,stock:50,sold:0},
+      {id:"LP2611",name:"花花暖居",category:"凸版方形",price:250,stock:50,sold:0},
+      {id:"LP2612",name:"家",category:"凸版方形",price:250,stock:50,sold:0},
       {id:"PA2401",name:"歡喜",category:"A4海報",price:250,stock:13,sold:0},
       {id:"PA2402",name:"平安",category:"A4海報",price:250,stock:15,sold:0},
       {id:"PA2501",name:"家",category:"A4海報",price:250,stock:18,sold:0},
@@ -735,11 +789,11 @@
       {id:"PL2501",name:"歡喜",category:"細長海報",price:160,stock:32,sold:0},
       {id:"PL2503",name:"好好吃飯",category:"細長海報",price:160,stock:19,sold:0},
       {id:"PL2504",name:"慢慢生活",category:"細長海報",price:160,stock:28,sold:0},
-      {id:"DC2601",name:"花生好事造型卡",category:"造型卡",price:80,stock:30,sold:0},
-      {id:"DC2602",name:"囍造型卡（米）",category:"造型卡",price:80,stock:14,sold:0},
-      {id:"DC2603",name:"囍造型卡（紅）",category:"造型卡",price:80,stock:7,sold:0},
-      {id:"ST2601",name:"全斷貼紙（單張）",category:"貼紙",price:20,stock:0,sold:0},
-      {id:"BM2601",name:"透卡書籤",category:"書籤",price:0,stock:0,sold:0},
+      {id:"DC2601",name:"花生好事造型卡",category:"造型卡",price:60,stock:30,sold:0},
+      {id:"DC2602",name:"囍造型卡（米）",category:"造型卡",price:100,stock:14,sold:0},
+      {id:"DC2603",name:"囍造型卡（紅）",category:"造型卡",price:100,stock:7,sold:0},
+      {id:"ST2601",name:"全斷貼紙（單張）",category:"貼紙",price:20,stock:440,sold:0},
+      {id:"BM2601",name:"透卡書籤",category:"書籤",price:29,stock:500,sold:0},
       {id:"LF2601",name:"A4 L夾 款1",category:"L夾",price:100,stock:100,sold:0},
       {id:"LF2602",name:"A4 L夾 款2",category:"L夾",price:100,stock:30,sold:0},
       {id:"FM2401",name:"知足",category:"冰箱貼",price:150,stock:15,sold:0},
@@ -763,7 +817,7 @@
       {id:"RH502",name:"福",category:"冰箱貼-春節",price:160,stock:20,sold:0},
       {id:"R302",name:"開心（直角）",category:"冰箱貼-春節",price:150,stock:10,sold:0},
       {id:"R305",name:"歲月靜好（直角）",category:"冰箱貼-春節",price:150,stock:15,sold:0},
-      {id:"TB2601",name:"帆布袋",category:"帆布袋",price:0,stock:0,sold:0},
+      {id:"TB2601",name:"帆布袋",category:"帆布袋",price:450,stock:10,sold:0},
       {id:"CS2601-S",name:"水晶貼（小片）",category:"水晶貼",price:35,stock:180,sold:0},
       {id:"CS2601-M",name:"水晶貼（中片）",category:"水晶貼",price:70,stock:20,sold:0},
       {id:"CS2601-L",name:"水晶貼（大片）",category:"水晶貼",price:120,stock:30,sold:0},
@@ -778,6 +832,35 @@
   if (firstRun){ settings.categories = SEED_CATS.slice(); save(K_PROD, products); save(K_SET, settings); }
   // 沒商品時給範例分類
   if (!settings.categories || !settings.categories.length) settings.categories = SEED_CATS.slice();
+
+  // ---------- 定價修補（給「已經用過、localStorage 有舊資料」的裝置） ----------
+  // seed 只在第一次開啟生效，之後不會覆蓋。這段負責把主檔改過的價格補上去。
+  // 庫存只在「目前還是 0」時才補，不會蓋掉現場盤點過的數字。
+  const K_PATCH = "pos_patch_ver";
+  const PATCH_VER = 2;   // 2026-07-31：對齊營運管理 xlsx「文博商品清單」
+  const PRICE_FIX = {
+    "LP2611": { price: 250 },                    // 凸版方形 180 → 250
+    "LP2612": { price: 250 },
+    "DC2601": { price: 60 },                     // 花生好事造型卡 80 → 60
+    "DC2602": { price: 100 },                    // 囍造型卡 80 → 100
+    "DC2603": { price: 100 },
+    "ST2601": { stockIfZero: 440 },              // 貼紙 10 大張 × 44
+    "BM2601": { price: 29, stockIfZero: 500 },   // 書籤：贈品／$29 加購
+    "TB2601": { price: 450, stockIfZero: 10 },
+  };
+  (function applyPatch(){
+    if (firstRun){ save(K_PATCH, PATCH_VER); return; }   // seed 已是新值
+    if ((+load(K_PATCH, 0)) >= PATCH_VER) return;
+    let changed = 0;
+    Object.keys(PRICE_FIX).forEach(id=>{
+      const p = products.find(x=>x.id===id); if (!p) return;
+      const fix = PRICE_FIX[id];
+      if (fix.price != null && p.price !== fix.price){ p.price = fix.price; changed++; }
+      if (fix.stockIfZero != null && !p.stock){ p.stock = fix.stockIfZero; changed++; }
+    });
+    save(K_PROD, products); save(K_PATCH, PATCH_VER);
+    if (changed) setTimeout(()=> toast("已套用最新定價／庫存修正（"+changed+" 處）"), 600);
+  })();
 
   let cart = [];            // {id, name, price, qty}
   let activeCat = "全部";
@@ -890,11 +973,12 @@
   }
 
   function addToCart(p){
-    const inCart = cart.find(c=>c.id===p.id);
-    const haveQty = inCart ? inCart.qty : 0;
+    // 贈品／加購書籤自成一列，不跟一般品項合併，但庫存要一起算
+    const haveQty = cart.filter(c=>c.id===p.id).reduce((s,c)=>s+c.qty, 0);
     if (haveQty >= p.stock){ toast("庫存只剩 "+p.stock+" 件"); return; }
+    const inCart = cart.find(c=>c.id===p.id && !c.gift && !c.addon && !c.custom);
     if (inCart) inCart.qty++;
-    else cart.push({ id:p.id, name:p.name, price:p.price, qty:1 });
+    else cart.push({ id:p.id, name:p.name, price:p.price, qty:1, cat:p.category });
     renderCart();
   }
 
@@ -936,7 +1020,8 @@
         row.querySelector(".minus").onclick = ()=>{ c.qty--; if(c.qty<=0) cart=cart.filter(x=>x!==c); renderCart(); };
         row.querySelector(".plus").onclick = ()=>{
           const prod = products.find(p=>p.id===c.id);
-          if (prod && c.qty>=prod.stock){ toast("庫存只剩 "+prod.stock+" 件"); return; }
+          const have = cart.filter(x=>x.id===c.id).reduce((s,x)=>s+x.qty, 0);
+          if (prod && have>=prod.stock){ toast("庫存只剩 "+prod.stock+" 件"); return; }
           c.qty++; renderCart();
         };
         row.querySelector(".ci-del").onclick = ()=>{ cart=cart.filter(x=>x!==c); renderCart(); };
@@ -946,31 +1031,145 @@
     updateTotals();
   }
 
-  function subtotalOf(){ return cart.reduce((s,c)=>s+c.price*c.qty, 0); }
+  // ================= 自動優惠引擎 =================
+  // 規則來源：100_Todo/projects/2026-07-31_文博POS升級規格.md
+  // pctGroup = 每 N 件打折（折扣優先套在單價高的品項，對客人最有利）
+  // bundle   = 每 N 件固定價
+  // 冰箱貼／冰箱貼-春節 不在任何規則裡 → 一律原價
+  const PROMO_RULES = [
+    { code:"paper3",   label:"紙品任選 3 件 8 折", type:"pctGroup", size:3, pct:0.8,
+      cats:["明信片","凸版明信片","細長海報","A4海報","凸版方形"] },
+    { code:"crystal3", label:"水晶貼任選 3 片 8 折", type:"pctGroup", size:3, pct:0.8,
+      cats:["水晶貼"] },
+    { code:"sticker3", label:"貼紙 3 張 $50", type:"bundle", size:3, bundlePrice:50,
+      cats:["貼紙"] },
+    { code:"lfolder2", label:"L夾 2 個 $180", type:"bundle", size:2, bundlePrice:180,
+      cats:["L夾"] },
+  ];
+  const GIFT_THRESHOLD = 300;      // 滿額送書籤門檻
+  const ADDON_BOOKMARK_PRICE = 29; // 書籤加購價
+  const BOOKMARK_ID = "BM2601";
 
-  function discountInfo(){
-    const type = document.getElementById("discType").value;
-    const v = parseFloat(document.getElementById("discValue").value) || 0;
-    const sub = subtotalOf();
-    let discAmt = 0;
-    if (type==="amount") discAmt = Math.min(v, sub);
-    else if (type==="percent"){ const pct=Math.max(0,Math.min(100,v)); discAmt = sub*(1-pct/100); }
-    return { type, value:v, discAmt, total: Math.max(0, sub-discAmt) };
+  // 品項分類：優先用品項自己帶的 cat（歷史訂單／贈品用），沒有才回商品清單查
+  function catOf(it){
+    if (it.cat) return it.cat;
+    const p = products.find(x=>x.id===it.id);
+    return p ? p.category : "";
+  }
+  // 自訂品項、贈品、加購書籤都不參與自動優惠
+  function promoEligible(it){ return !it.custom && !it.gift && !it.addon; }
+
+  function computePromos(items){
+    const promos = []; let amount = 0;
+    PROMO_RULES.forEach(rule=>{
+      const units = [];
+      items.forEach(it=>{
+        if (!promoEligible(it) || !rule.cats.includes(catOf(it))) return;
+        for (let i=0;i<it.qty;i++) units.push(it.price);
+      });
+      if (units.length < rule.size) return;
+      units.sort((a,b)=>b-a);                       // 高單價排前面
+      const groups = Math.floor(units.length / rule.size);
+      const picked = units.slice(0, groups*rule.size);   // 折扣優先套高單價
+      const orig = picked.reduce((s,v)=>s+v, 0);
+      let disc = (rule.type==="pctGroup")
+        ? orig * (1 - rule.pct)
+        : orig - rule.bundlePrice * groups;
+      disc = Math.round(disc);
+      if (disc <= 0) return;
+      promos.push({ code:rule.code, label:rule.label, groups, amount:disc });
+      amount += disc;
+    });
+    return { promos, amount };
+  }
+
+  // 一張單的完整算法：小計 → 自動優惠 → 手動折扣 → 應收
+  function calcOrder(items, manualType, manualValue){
+    const sub = items.reduce((s,c)=>s+c.price*c.qty, 0);
+    const pr = computePromos(items);
+    const afterAuto = Math.max(0, sub - pr.amount);
+    const v = parseFloat(manualValue) || 0;
+    let manualDisc = 0;
+    if (manualType==="amount") manualDisc = Math.min(v, afterAuto);
+    else if (manualType==="percent"){ const pct = Math.max(0, Math.min(100, v)); manualDisc = afterAuto*(1-pct/100); }
+    manualDisc = Math.round(manualDisc);
+    const total = Math.max(0, afterAuto - manualDisc);
+    // 滿額贈基準：書籤（贈品／加購）金額不計入門檻
+    const bmAmt = items.filter(it=> catOf(it)==="書籤").reduce((s,it)=>s+it.price*it.qty, 0);
+    return {
+      sub, promos: pr.promos, autoDisc: pr.amount,
+      manualType, manualValue: v, manualDisc, total,
+      giftBase: Math.max(0, total - bmAmt),
+      hasGift: items.some(it=> it.gift)
+    };
+  }
+
+  function cartCalc(){
+    return calcOrder(cart,
+      document.getElementById("discType").value,
+      document.getElementById("discValue").value);
   }
 
   function updateTotals(){
-    const sub = subtotalOf();
-    document.getElementById("subtotal").textContent = money(sub);
-    const info = discountInfo();
-    document.getElementById("grandTotal").textContent = money(info.total);
+    const r = cartCalc();
+    document.getElementById("subtotal").textContent = money(r.sub);
+    document.getElementById("grandTotal").textContent = money(r.total);
+
+    // 套用了哪些優惠
+    const pl = document.getElementById("promoList");
+    let rows = r.promos.map(p=>
+      '<div class="sum-row promo"><span>🏷 '+esc(p.label)+(p.groups>1?' ×'+p.groups+' 組':'')+'</span><span>−'+money(p.amount)+'</span></div>'
+    ).join("");
+    if (r.manualDisc > 0){
+      const lab = r.manualType==="amount" ? "手動折扣 減 "+money(r.manualValue) : "手動折扣 "+r.manualValue+" 折";
+      rows += '<div class="sum-row manual"><span>✎ '+lab+'</span><span>−'+money(r.manualDisc)+'</span></div>';
+    }
+    pl.innerHTML = rows;
+
+    // 滿額贈 / 差額提示
+    const gb = document.getElementById("giftBanner");
+    if (!cart.length){ gb.className = "gift-banner"; gb.innerHTML = ""; }
+    else if (r.hasGift){
+      gb.className = "gift-banner done";
+      gb.innerHTML = '<span>🎁 已送出書籤 1 張</span>';
+    } else if (r.giftBase >= GIFT_THRESHOLD){
+      gb.className = "gift-banner hit";
+      gb.innerHTML = '<span>🎁 滿 '+money(GIFT_THRESHOLD)+'，可送書籤 1 張</span><button id="giftAdd">已送出</button>';
+      document.getElementById("giftAdd").onclick = addGiftBookmark;
+    } else {
+      gb.className = "gift-banner near";
+      gb.innerHTML = '<span>再 <b>'+money(GIFT_THRESHOLD - r.giftBase)+'</b> 就送書籤 1 張</span>';
+    }
+
     const has = cart.length>0;
     document.getElementById("payCash").disabled = !has;
     document.getElementById("payLine").disabled = !has;
     // 手機底部購物車摘要
     const qty = cart.reduce((s,c)=>s+c.qty, 0);
     document.getElementById("mcbCount").textContent = qty + " 件";
-    document.getElementById("mcbTotal").textContent = money(info.total);
+    document.getElementById("mcbTotal").textContent = money(r.total);
   }
+
+  // ---------- 書籤：滿額贈 / $29 加購 ----------
+  function qtyInCart(id){ return cart.filter(c=>c.id===id).reduce((s,c)=>s+c.qty, 0); }
+  function bookmarkStockLeft(){
+    const p = products.find(x=>x.id===BOOKMARK_ID);
+    return p ? p.stock - qtyInCart(BOOKMARK_ID) : 0;
+  }
+  function addGiftBookmark(){
+    if (cart.some(c=>c.gift)) return;
+    if (bookmarkStockLeft() <= 0){ toast("書籤庫存不足"); return; }
+    cart.push({ id:BOOKMARK_ID, name:"透卡書籤（滿額贈）", price:0, qty:1, gift:true, cat:"書籤" });
+    renderCart(); toast("🎁 已加入贈品書籤");
+  }
+  function addBookmarkAddon(){
+    if (bookmarkStockLeft() <= 0){ toast("書籤庫存不足"); return; }
+    const line = cart.find(c=>c.addon && c.id===BOOKMARK_ID);
+    if (line) line.qty++;
+    else cart.push({ id:BOOKMARK_ID, name:"透卡書籤（加購）", price:ADDON_BOOKMARK_PRICE, qty:1, addon:true, cat:"書籤" });
+    renderCart(); toast("已加購書籤 "+money(ADDON_BOOKMARK_PRICE));
+  }
+  document.getElementById("addonBookmark").onclick = addBookmarkAddon;
 
   // 手機：購物車面板開合
   function openCart(){ document.getElementById("view-pos").classList.add("cart-open"); }
@@ -996,7 +1195,7 @@
   // 付款
   document.getElementById("payLine").onclick = ()=>{
     if (!cart.length) return;
-    finishSale("line", discountInfo().total, null);
+    finishSale("line", cartCalc().total, null);
   };
   document.getElementById("payCash").onclick = ()=> openCashModal();
 
@@ -1004,7 +1203,7 @@
   let cashDue = 0;
   function openCashModal(){
     if (!cart.length) return;
-    cashDue = discountInfo().total;
+    cashDue = cartCalc().total;
     document.getElementById("cashDue").textContent = money(cashDue);
     const got = document.getElementById("cashGot");
     got.value = ""; got.classList.remove("confirmed");
@@ -1046,16 +1245,20 @@
   };
 
   function finishSale(payment, total, cashGot){
-    const info = discountInfo();
-    // 扣庫存 + 累加已售
+    const r = cartCalc();
+    // 扣庫存 + 累加已售（贈品書籤也會扣，展後才算得出送出幾張）
     cart.forEach(c=>{
       const p = products.find(x=>x.id===c.id);
       if (p){ p.stock = Math.max(0, p.stock - c.qty); p.sold = (p.sold||0) + c.qty; }
     });
     const sale = {
       id: uid(), ts: Date.now(),
-      items: cart.map(c=>({ id:c.id, name:c.name, qty:c.qty, price:c.price })),
-      subtotal: subtotalOf(), discountType: info.type, discountValue: info.value,
+      items: cart.map(c=>({ id:c.id, name:c.name, qty:c.qty, price:c.price, cat:catOf(c),
+                            ...(c.gift?{gift:1}:{}), ...(c.addon?{addon:1}:{}), ...(c.custom?{custom:1}:{}) })),
+      subtotal: r.sub,
+      promos: r.promos, autoDiscount: r.autoDisc,        // 自動優惠明細（展後驗證哪條規則有效）
+      discountType: r.manualType, discountValue: r.manualValue, manualDiscount: r.manualDisc,
+      giftBookmark: r.hasGift ? 1 : 0,
       total: total, payment: payment
     };
     if (payment==="cash") sale.cashGot = cashGot;
@@ -1276,28 +1479,63 @@
 
   // ================= 報表 =================
   document.getElementById("reportDate").value = todayStr();
-  document.getElementById("reportDate").addEventListener("change", renderReport);
+  document.getElementById("reportDate").addEventListener("change", ()=>{ allDays = false; renderReport(); });
+  let allDays = false;
+  document.getElementById("allDaysBtn").onclick = ()=>{ allDays = !allDays; renderReport(); };
+
+  // 選到的訂單範圍：單日 或 全展期
+  function scopedSales(){
+    if (allDays) return sales.slice();
+    const day = document.getElementById("reportDate").value || todayStr();
+    return sales.filter(s=> dateOf(s.ts)===day);
+  }
 
   function renderReport(){
-    const day = document.getElementById("reportDate").value || todayStr();
-    const daySales = sales.filter(s=> dateOf(s.ts)===day);
-    let cash=0, line=0, count=daySales.length;
+    const daySales = scopedSales();
+    const btn = document.getElementById("allDaysBtn");
+    btn.classList.toggle("primary", allDays);
+    btn.textContent = allDays ? "✓ 全展期合計（點此回單日）" : "全展期合計";
+    document.getElementById("reportDate").style.opacity = allDays ? "0.4" : "1";
+
+    let cash=0, line=0, count=daySales.length, autoDisc=0, manualDisc=0, gifts=0, units=0;
     const rank = {};
     daySales.forEach(s=>{
       if (s.payment==="cash") cash += s.total; else line += s.total;
+      autoDisc += s.autoDiscount || 0;
+      manualDisc += s.manualDiscount || 0;
+      gifts += s.giftBookmark || 0;
       s.items.forEach(it=>{
-        if(!rank[it.id]) rank[it.id] = { name:it.name, qty:0, rev:0 };
+        units += it.qty;
+        if(!rank[it.id]) rank[it.id] = { id:it.id, name:it.name, cat:it.cat||catOf(it), qty:0, rev:0 };
         rank[it.id].qty += it.qty; rank[it.id].rev += it.price*it.qty;
       });
     });
     const total = cash + line;
     const avg = count ? total / count : 0;
+    const scopeLab = allDays ? "全展期" : "今日";
     document.getElementById("reportCards").innerHTML =
-      card("tot","今日總營收", money(total)) +
+      card("tot",scopeLab+"總營收", money(total)) +
       card("cash","現金", money(cash)) +
       card("line","LINE Pay", money(line)) +
       card("","交易筆數", count + " 筆") +
-      card("","客單價（平均每筆）", money(avg));
+      card("","客單價（平均每筆）", money(avg)) +
+      card("","平均每筆件數", (count ? (units/count).toFixed(1) : "0") + " 件") +
+      card("","自動優惠折抵", money(autoDisc)) +
+      card("","手動折扣折抵", money(manualDisc)) +
+      card("","送出贈品書籤", gifts + " 張");
+
+    // 各優惠規則使用次數（驗證哪條規則真的有效）
+    const pu = {};
+    daySales.forEach(s=>{
+      (s.promos||[]).forEach(p=>{
+        if(!pu[p.code]) pu[p.code] = { label:p.label, groups:0, orders:0, amount:0 };
+        pu[p.code].groups += p.groups; pu[p.code].orders += 1; pu[p.code].amount += p.amount;
+      });
+    });
+    const puArr = PROMO_RULES.map(r=> pu[r.code] || { label:r.label, groups:0, orders:0, amount:0 });
+    document.getElementById("promoBody").innerHTML = puArr.map(p=>
+      '<tr><td>'+esc(p.label)+'</td><td class="num">'+p.groups+'</td><td class="num">'+p.orders+'</td><td class="num">'+money(p.amount)+'</td></tr>'
+    ).join("") + '<tr><td>滿 '+money(GIFT_THRESHOLD)+' 送書籤</td><td class="num">'+gifts+'</td><td class="num">'+gifts+'</td><td class="num">—</td></tr>';
 
     // 每筆訂單明細（最新在最上面）
     const ob = document.getElementById("orderBody");
@@ -1308,7 +1546,7 @@
         const t = new Date(s.ts); const p=n=>String(n).padStart(2,"0");
         const tstr = p(t.getHours())+":"+p(t.getMinutes());
         const combo = s.items.map(it=> esc(it.name)+' ×'+it.qty).join("、");
-        const disc = s.discountType==="none" ? "—" : (s.discountType==="amount" ? "減 "+s.discountValue : (s.discountValue+" 折"));
+        const disc = discLabel(s);
         const pay = s.payment==="cash" ? "現金" : "LINE Pay";
         return '<tr class="order-row" data-id="'+s.id+'"><td class="num">'+(daySales.length-idx)+'</td><td>'+tstr+'</td><td>'+combo+'</td><td class="num">'+disc+'</td><td class="num">'+money(s.total)+'</td><td>'+pay+' <span class="edit-hint">✎</span></td></tr>';
       }).join("");
@@ -1326,16 +1564,19 @@
       : '<tr><td colspan="3" style="text-align:center;color:var(--ink-soft);padding:20px">還沒有商品</td></tr>';
   }
   function card(cls, lab, val){ return '<div class="rcard '+cls+'"><div class="rlab">'+lab+'</div><div class="rval">'+val+'</div></div>'; }
+  // 折扣欄：自動優惠 + 手動折扣一起顯示
+  function discLabel(s){
+    const parts = [];
+    if (s.autoDiscount) parts.push("優惠 −"+s.autoDiscount);
+    if (s.discountType==="amount" && s.discountValue) parts.push("減 "+s.discountValue);
+    else if (s.discountType==="percent" && s.discountValue) parts.push(s.discountValue+" 折");
+    if (s.giftBookmark) parts.push("🎁");
+    return parts.length ? parts.join("／") : "—";
+  }
 
   // ---------- 修改 / 刪除訂單 ----------
   let editWork = null;
-  function calcTotal(items, discType, discValue){
-    const sub = items.reduce((s,c)=>s+c.price*c.qty, 0);
-    let discAmt = 0;
-    if (discType==="amount") discAmt = Math.min(discValue||0, sub);
-    else if (discType==="percent"){ const pct=Math.max(0,Math.min(100,discValue||0)); discAmt = sub*(1-pct/100); }
-    return { sub, total: Math.max(0, sub-discAmt) };
-  }
+  function calcTotal(items, discType, discValue){ return calcOrder(items, discType, discValue); }
   function restoreStock(sale){ sale.items.forEach(it=>{ const p=products.find(x=>x.id===it.id); if(p){ p.stock += it.qty; p.sold = Math.max(0,(p.sold||0)-it.qty); } }); }
 
   document.getElementById("orderBody").addEventListener("click", e=>{
@@ -1347,7 +1588,9 @@
     const s = sales.find(x=>x.id===saleId); if(!s) return;
     editWork = {
       saleId: s.id,
-      items: s.items.map(it=>({ id:it.id, name:it.name, price:it.price, qty:it.qty })),
+      items: s.items.map(it=>({ id:it.id, name:it.name, price:it.price, qty:it.qty,
+                                cat: it.cat || catOf(it),
+                                ...(it.gift?{gift:1}:{}), ...(it.addon?{addon:1}:{}), ...(it.custom?{custom:1}:{}) })),
       discType: s.discountType || "none",
       discValue: s.discountValue || 0,
       payment: s.payment
@@ -1380,6 +1623,9 @@
     const r = calcTotal(editWork.items, editWork.discType, editWork.discValue);
     document.getElementById("editSubtotal").textContent = money(r.sub);
     document.getElementById("editTotal").textContent = money(r.total);
+    document.getElementById("editPromoList").innerHTML = r.promos.map(p=>
+      '<div class="sum-row promo"><span>🏷 '+esc(p.label)+(p.groups>1?' ×'+p.groups+' 組':'')+'</span><span>−'+money(p.amount)+'</span></div>'
+    ).join("");
   }
   function updateEditPay(){ document.querySelectorAll("#editModal .ep-btn").forEach(b=> b.classList.toggle("sel", b.dataset.pay===editWork.payment)); }
 
@@ -1407,8 +1653,12 @@
     }
     editWork.items.forEach(c=>{ const p=products.find(x=>x.id===c.id); if(p){ p.stock=Math.max(0,p.stock-c.qty); p.sold=(p.sold||0)+c.qty; } });
     const r = calcTotal(editWork.items, editWork.discType, editWork.discValue);
-    s.items = editWork.items.map(c=>({id:c.id,name:c.name,price:c.price,qty:c.qty}));
-    s.subtotal = r.sub; s.discountType = editWork.discType; s.discountValue = editWork.discValue;
+    s.items = editWork.items.map(c=>({ id:c.id, name:c.name, price:c.price, qty:c.qty, cat:catOf(c),
+                                       ...(c.gift?{gift:1}:{}), ...(c.addon?{addon:1}:{}), ...(c.custom?{custom:1}:{}) }));
+    s.subtotal = r.sub;
+    s.promos = r.promos; s.autoDiscount = r.autoDisc;
+    s.discountType = editWork.discType; s.discountValue = editWork.discValue; s.manualDiscount = r.manualDisc;
+    s.giftBookmark = r.hasGift ? 1 : 0;
     s.total = r.total; s.payment = editWork.payment;
     if (s.payment!=="cash") delete s.cashGot;
     save(K_PROD,products); save(K_SALES,sales);
@@ -1425,21 +1675,52 @@
 
   document.getElementById("exportCsv").onclick = ()=>{
     const day = document.getElementById("reportDate").value || todayStr();
-    const daySales = sales.filter(s=> dateOf(s.ts)===day);
-    if (!daySales.length){ toast("這天沒有交易紀錄"); return; }
+    const daySales = scopedSales();
+    if (!daySales.length){ toast(allDays ? "還沒有任何交易紀錄" : "這天沒有交易紀錄"); return; }
     // 一筆訂單一列，跟畫面的「每筆訂單明細」一致
-    const rows = [["訂單序號","時間","品項組合","小計","折扣","應收","付款方式"]];
+    const rows = [["訂單序號","日期","時間","品項組合","件數","小計","自動優惠","優惠明細","手動折扣","應收","贈品書籤","付款方式"]];
     daySales.forEach((s, i)=>{
       const t = new Date(s.ts); const p=n=>String(n).padStart(2,"0");
       const tstr = p(t.getHours())+":"+p(t.getMinutes())+":"+p(t.getSeconds());
       const combo = s.items.map(it=> it.name+" ×"+it.qty).join("、");
+      const qty = s.items.reduce((a,it)=>a+it.qty, 0);
       const pay = s.payment==="cash"?"現金":"LINE Pay";
-      const disc = s.discountType==="none"?"":(s.discountType==="amount"?"減"+s.discountValue:s.discountValue+" 折");
-      rows.push([i+1, tstr, combo, s.subtotal, disc, s.total, pay]);
+      const promoTxt = (s.promos||[]).map(x=> x.label+(x.groups>1?" ×"+x.groups+" 組":"")+" −"+x.amount).join("；");
+      const manual = s.discountType==="amount" ? "減"+s.discountValue : (s.discountType==="percent" ? s.discountValue+" 折" : "");
+      rows.push([i+1, dateOf(s.ts), tstr, combo, qty, s.subtotal, s.autoDiscount||0, promoTxt,
+                 manual + (s.manualDiscount ? "（−"+s.manualDiscount+"）" : ""), s.total,
+                 s.giftBookmark ? 1 : 0, pay]);
     });
     const csv = "﻿" + rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
-    downloadBlob(csv, "文博會銷售_"+day+".csv", "text/csv");
-    toast("已匯出 CSV");
+    downloadBlob(csv, "文博會訂單_"+(allDays ? "全展期" : day)+".csv", "text/csv");
+    toast("已匯出訂單 CSV");
+  };
+
+  // 品項銷量 CSV → 展後回填「三支筆商品營運管理.xlsx / 銷售實績」頁
+  document.getElementById("exportItemCsv").onclick = ()=>{
+    const day = document.getElementById("reportDate").value || todayStr();
+    const scoped = scopedSales();
+    if (!scoped.length){ toast(allDays ? "還沒有任何交易紀錄" : "這天沒有交易紀錄"); return; }
+    const agg = {};
+    scoped.forEach(s=> s.items.forEach(it=>{
+      const key = it.id;
+      if(!agg[key]){
+        const prod = products.find(x=>x.id===it.id);        // 品名以商品主檔為準（贈品／加購列名字帶括號）
+        agg[key] = { id:it.id, name: prod ? prod.name : it.name, cat: prod ? prod.category : (it.cat||catOf(it)), qty:0, rev:0, gift:0 };
+      }
+      agg[key].qty += it.qty; agg[key].rev += it.price*it.qty;
+      if (it.gift) agg[key].gift += it.qty;
+    }));
+    const rows = [["貨號","品名","分類","目前售價","賣出數量","其中贈品數","銷售金額","剩餘庫存"]];
+    Object.values(agg).sort((a,b)=>b.qty-a.qty).forEach(r=>{
+      const p = products.find(x=>x.id===r.id);
+      rows.push([r.id, r.name, r.cat, p?p.price:"", r.qty, r.gift, r.rev, p?p.stock:""]);
+    });
+    // 沒賣出的也帶進去，展後盤點才對得起來
+    products.forEach(p=>{ if(!agg[p.id]) rows.push([p.id, p.name, p.category, p.price, 0, 0, 0, p.stock]); });
+    const csv = "﻿" + rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
+    downloadBlob(csv, "文博會品項銷量_"+(allDays ? "全展期" : day)+".csv", "text/csv");
+    toast("已匯出品項銷量 CSV");
   };
   document.getElementById("exportAll").onclick = ()=>{
     downloadJSON({ exportedAt: Date.now(), products, sales, settings }, "文博會POS_完整備份_"+todayStr()+".json");

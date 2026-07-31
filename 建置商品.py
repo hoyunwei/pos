@@ -7,7 +7,9 @@
   - 分類名沿用主檔（明信片 / A4海報 / 細長海報 / 貼紙 / 造型卡 / 書籤 / L夾 /
     冰箱貼 / 冰箱貼-春節 / 帆布袋 / 水晶貼 / 凸版明信片 / 凸版方形）
   - 庫存＝「帶去數量」，空白→0（收銀台灰掉不可點）
-  - 缺價：造型卡 80、L夾 100、凸版明信片 80、凸版方形 180、書籤/帆布袋 0（庫存本來就 0）
+  - 缺價 fallback：造型卡 60、L夾 100、凸版明信片 80、凸版方形 250、帆布袋 450
+    書籤 = 贈品，主檔定價欄寫「贈品」→ 這裡填「加購價 29」（滿 $300 送 1 張，也可 $29 加購）
+    2026-07-31 更新：主檔已補齊定價，多數 fallback 不會觸發，留著只是保險
   - 冰箱貼-春節 定價 0/空 → RH 系列補 160、其餘補 150
   - 水晶貼 23 款共用 CS2601 → 合成 3 個尺寸 SKU：小片$35 / 中片$70 / 大片$120，
     庫存＝盤點表各尺寸帶去量加總
@@ -52,12 +54,13 @@ def build_products():
         # 定價
         p = num(price_raw, None) if price_raw not in (None, "待定", "—") else None
         if p is None or p == 0:
-            if cat == "造型卡": p = 80
+            if cat == "造型卡": p = 60
             elif cat == "L夾": p = 100
             elif cat == "凸版明信片": p = 80
-            elif cat == "凸版方形": p = 180
+            elif cat == "凸版方形": p = 250
             elif cat == "冰箱貼-春節": p = 160 if code.startswith("RH") else 150
-            elif cat in ("書籤", "帆布袋"): p = 0
+            elif cat == "書籤": p = 29      # 贈品，但可 $29 加購
+            elif cat == "帆布袋": p = 450
             else: p = 0
         prods.append({"id": code, "name": str(name).strip(), "category": cat,
                       "price": p, "stock": stock, "sold": 0})

@@ -14,6 +14,12 @@
   - 水晶貼 23 款共用 CS2601 → 合成 3 個尺寸 SKU：小片$35 / 中片$70 / 大片$120，
     庫存＝盤點表各尺寸帶去量加總
 產出：商品匯入_文博.json（含圖 base64）＋ seed_snippet.txt（貼進 index.html）
+
+⚠️ 只要改了 seed（定價／商品／分類），index.html 的 PATCH_VER 一定要 +1，
+   否則已經用過的裝置不會吃到變更。
+⚠️ 水晶貼刻意不附圖（SKIP_IMG_IDS）：CS2601_水晶貼.jpg 是程式產的佔位圖，
+   上面紅字寫「未定價」，但三個尺寸早已定價 35／70／120，擺在收銀台會誤導客人。
+   小何 2026-07-31 決定這三張卡不要圖。之後有真照片再從這裡拿掉即可。
 """
 import openpyxl, json, os, base64, io
 from PIL import Image, ImageOps
@@ -91,11 +97,15 @@ def to_data_url(path):
     buf = io.BytesIO(); img.save(buf, format="JPEG", quality=QUALITY, optimize=True)
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
+# 這些貨號刻意不附圖（現有的是會誤導的佔位圖，寧可留空白卡）
+SKIP_IMG_IDS = {"CS2601-S", "CS2601-M", "CS2601-L"}
+
 def attach_images(prods):
     files = [f for f in os.listdir(IMG_DIR) if f.lower().endswith(EXTS)]
     matched, missing, kb = 0, [], 0
     for p in prods:
         pid = p["id"]
+        if pid in SKIP_IMG_IDS: continue
         # 水晶貼三尺寸共用 CS2601 那張
         match_key = "CS2601" if pid.startswith("CS2601") else pid
         cands = [f for f in files if os.path.splitext(f)[0] == match_key] or \

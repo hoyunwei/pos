@@ -570,7 +570,7 @@
         <h3>② 優惠系統會自動算，你不用心算 🎉</h3>
         <p>東西加進購物車，符合的優惠會<b>自動跳出來</b>並扣好金額，購物車下方會寫「套用了什麼優惠、折了多少」，可以直接唸給客人聽。</p>
         <ul>
-          <li><b>紙品任選 3 件 8 折</b>：明信片、凸版明信片、細長海報、A4 海報、凸版方形，可以混搭湊件</li>
+          <li><b>紙品任選 3 件 8 折</b>：明信片、凸版、海報 三類都算，可以混搭湊件</li>
           <li><b>水晶貼任選 3 片 8 折</b>：大中小可以互相湊</li>
           <li><b>貼紙 3 張 $50</b>（原價 60）</li>
           <li><b>L 夾 2 個 $180</b>（原價 200）</li>
@@ -729,16 +729,13 @@
   // 分類代表色（與商品佔位圖同一套配色）：[深色=文字/色帶, 淺色=底]
   const CAT_COLORS = {
     "明信片": ["#c2706a", "#f3e0dd"],
-    "凸版明信片": ["#9c7a45", "#f0e6d6"],
-    "凸版方形": ["#b07a3a", "#f2e3cc"],
-    "A4海報": ["#5d84ad", "#dde8f3"],
-    "細長海報": ["#5d9166", "#dcecdd"],
+    "凸版": ["#9c7a45", "#f0e6d6"],
+    "海報": ["#5d84ad", "#dde8f3"],
     "造型卡": ["#8f6aa0", "#ece0f1"],
     "貼紙": ["#b5892c", "#f7ecd4"],
     "書籤": ["#4f93aa", "#dcecf3"],
     "L夾": ["#9c8348", "#f1e9d8"],
     "冰箱貼": ["#bd5f5f", "#f5dede"],
-    "冰箱貼-春節": ["#c0473f", "#f7d9d5"],
     "帆布袋": ["#77776a", "#e6e6df"],
     "水晶貼": ["#4ea394", "#d9f0eb"],
   };
@@ -747,7 +744,7 @@
 
   // 預設商品（第一次開啟時自動帶入；之後改的都以你裝置上的為準，不會被蓋回）
   // 來源：600_Project/商品管理/三支筆商品營運管理.xlsx →「文博商品清單」分頁（庫存取「帶去數量」欄）
-  const SEED_CATS = ["明信片", "凸版明信片", "凸版方形", "A4海報", "細長海報", "造型卡", "貼紙", "書籤", "L夾", "冰箱貼", "冰箱貼-春節", "帆布袋", "水晶貼"];
+  const SEED_CATS = ["明信片", "凸版", "海報", "造型卡", "貼紙", "書籤", "L夾", "冰箱貼", "帆布袋", "水晶貼"];
   function buildSeed(){
     return [
       {id:"MC2401",name:"平安",category:"明信片",price:50,stock:35,sold:0},
@@ -758,37 +755,37 @@
       {id:"MC2501",name:"日日好日",category:"明信片",price:50,stock:50,sold:0},
       {id:"MC2502",name:"你今天真好看",category:"明信片",price:50,stock:35,sold:0},
       {id:"MC2505",name:"所有的美好都將如約而至",category:"明信片",price:50,stock:40,sold:0},
-      {id:"LP2601",name:"平安蘋果",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2602",name:"諸事宜",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2603",name:"歡喜",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2604",name:"日日好日",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2605",name:"睡到自然醒",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2606",name:"好好吃飯慢慢生活",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2607",name:"一切美好都將如約而至",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2608",name:"今天也會是美好的一天",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2609",name:"花生好事",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2610",name:"日富一日",category:"凸版明信片",price:80,stock:50,sold:0},
-      {id:"LP2611",name:"花花暖居",category:"凸版方形",price:250,stock:50,sold:0},
-      {id:"LP2612",name:"家",category:"凸版方形",price:250,stock:50,sold:0},
-      {id:"PA2401",name:"歡喜",category:"A4海報",price:250,stock:13,sold:0},
-      {id:"PA2402",name:"平安",category:"A4海報",price:250,stock:15,sold:0},
-      {id:"PA2501",name:"家",category:"A4海報",price:250,stock:18,sold:0},
-      {id:"PA2502",name:"暖居",category:"A4海報",price:250,stock:24,sold:0},
-      {id:"PA2601",name:"平安蘋果",category:"A4海報",price:260,stock:30,sold:0},
-      {id:"PA2403",name:"保持熱愛",category:"A4海報",price:250,stock:5,sold:0},
-      {id:"PA2404",name:"聽雨",category:"A4海報",price:250,stock:5,sold:0},
-      {id:"PA2405",name:"放下",category:"A4海報",price:250,stock:5,sold:0},
-      {id:"PA2406",name:"先去做",category:"A4海報",price:250,stock:5,sold:0},
-      {id:"PA2407",name:"山海",category:"A4海報",price:250,stock:5,sold:0},
-      {id:"PA2409",name:"逍遙",category:"A4海報",price:250,stock:5,sold:0},
-      {id:"PA2410",name:"慢",category:"A4海報",price:250,stock:5,sold:0},
-      {id:"PL2401",name:"心安處",category:"細長海報",price:160,stock:36,sold:0},
-      {id:"PL2402",name:"諸事宜",category:"細長海報",price:160,stock:28,sold:0},
-      {id:"PL2406",name:"做自己的光",category:"細長海報",price:160,stock:31,sold:0},
-      {id:"PL2407",name:"歲月靜好",category:"細長海報",price:160,stock:26,sold:0},
-      {id:"PL2501",name:"歡喜",category:"細長海報",price:160,stock:32,sold:0},
-      {id:"PL2503",name:"好好吃飯",category:"細長海報",price:160,stock:19,sold:0},
-      {id:"PL2504",name:"慢慢生活",category:"細長海報",price:160,stock:28,sold:0},
+      {id:"LP2601",name:"平安蘋果",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2602",name:"諸事宜",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2603",name:"歡喜",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2604",name:"日日好日",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2605",name:"睡到自然醒",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2606",name:"好好吃飯慢慢生活",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2607",name:"一切美好都將如約而至",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2608",name:"今天也會是美好的一天",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2609",name:"花生好事",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2610",name:"日富一日",category:"凸版",price:80,stock:50,sold:0},
+      {id:"LP2611",name:"花花暖居",category:"凸版",price:250,stock:50,sold:0},
+      {id:"LP2612",name:"家",category:"凸版",price:250,stock:50,sold:0},
+      {id:"PA2401",name:"歡喜",category:"海報",price:250,stock:13,sold:0},
+      {id:"PA2402",name:"平安",category:"海報",price:250,stock:15,sold:0},
+      {id:"PA2501",name:"家",category:"海報",price:250,stock:18,sold:0},
+      {id:"PA2502",name:"暖居",category:"海報",price:250,stock:24,sold:0},
+      {id:"PA2601",name:"平安蘋果",category:"海報",price:260,stock:30,sold:0},
+      {id:"PA2403",name:"保持熱愛",category:"海報",price:250,stock:5,sold:0},
+      {id:"PA2404",name:"聽雨",category:"海報",price:250,stock:5,sold:0},
+      {id:"PA2405",name:"放下",category:"海報",price:250,stock:5,sold:0},
+      {id:"PA2406",name:"先去做",category:"海報",price:250,stock:5,sold:0},
+      {id:"PA2407",name:"山海",category:"海報",price:250,stock:5,sold:0},
+      {id:"PA2409",name:"逍遙",category:"海報",price:250,stock:5,sold:0},
+      {id:"PA2410",name:"慢",category:"海報",price:250,stock:5,sold:0},
+      {id:"PL2401",name:"心安處",category:"海報",price:160,stock:36,sold:0},
+      {id:"PL2402",name:"諸事宜",category:"海報",price:160,stock:28,sold:0},
+      {id:"PL2406",name:"做自己的光",category:"海報",price:160,stock:31,sold:0},
+      {id:"PL2407",name:"歲月靜好",category:"海報",price:160,stock:26,sold:0},
+      {id:"PL2501",name:"歡喜",category:"海報",price:160,stock:32,sold:0},
+      {id:"PL2503",name:"好好吃飯",category:"海報",price:160,stock:19,sold:0},
+      {id:"PL2504",name:"慢慢生活",category:"海報",price:160,stock:28,sold:0},
       {id:"DC2601",name:"花生好事造型卡",category:"造型卡",price:60,stock:30,sold:0},
       {id:"DC2602",name:"囍造型卡（米）",category:"造型卡",price:100,stock:14,sold:0},
       {id:"DC2603",name:"囍造型卡（紅）",category:"造型卡",price:100,stock:7,sold:0},
@@ -800,23 +797,23 @@
       {id:"FM2402",name:"不急",category:"冰箱貼",price:150,stock:15,sold:0},
       {id:"FM2403",name:"常樂",category:"冰箱貼",price:150,stock:15,sold:0},
       {id:"FM2404",name:"逍遙",category:"冰箱貼",price:150,stock:15,sold:0},
-      {id:"R401",name:"心想柿成",category:"冰箱貼-春節",price:150,stock:20,sold:0},
-      {id:"R501",name:"天天有錢花",category:"冰箱貼-春節",price:150,stock:20,sold:0},
-      {id:"R502",name:"日日好日",category:"冰箱貼-春節",price:150,stock:20,sold:0},
-      {id:"R503",name:"招財進寶",category:"冰箱貼-春節",price:150,stock:10,sold:0},
-      {id:"R504",name:"平安喜樂",category:"冰箱貼-春節",price:150,stock:20,sold:0},
-      {id:"R505",name:"抱富",category:"冰箱貼-春節",price:150,stock:20,sold:0},
-      {id:"R507",name:"先去做",category:"冰箱貼-春節",price:150,stock:10,sold:0},
-      {id:"R603",name:"財food自由",category:"冰箱貼-春節",price:150,stock:25,sold:0},
-      {id:"R604",name:"財源滾滾",category:"冰箱貼-春節",price:150,stock:20,sold:0},
-      {id:"R605",name:"出入平安",category:"冰箱貼-春節",price:150,stock:10,sold:0},
-      {id:"R606",name:"活在當下",category:"冰箱貼-春節",price:150,stock:15,sold:0},
-      {id:"R607",name:"旺旺來",category:"冰箱貼-春節",price:150,stock:20,sold:0},
-      {id:"R608",name:"有錢",category:"冰箱貼-春節",price:150,stock:15,sold:0},
-      {id:"RH501",name:"歡喜",category:"冰箱貼-春節",price:160,stock:15,sold:0},
-      {id:"RH502",name:"福",category:"冰箱貼-春節",price:160,stock:20,sold:0},
-      {id:"R302",name:"開心（直角）",category:"冰箱貼-春節",price:150,stock:10,sold:0},
-      {id:"R305",name:"歲月靜好（直角）",category:"冰箱貼-春節",price:150,stock:15,sold:0},
+      {id:"R401",name:"心想柿成",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R501",name:"天天有錢花",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R502",name:"日日好日",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R503",name:"招財進寶",category:"冰箱貼",price:150,stock:10,sold:0},
+      {id:"R504",name:"平安喜樂",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R505",name:"抱富",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R507",name:"先去做",category:"冰箱貼",price:150,stock:10,sold:0},
+      {id:"R603",name:"財food自由",category:"冰箱貼",price:150,stock:25,sold:0},
+      {id:"R604",name:"財源滾滾",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R605",name:"出入平安",category:"冰箱貼",price:150,stock:10,sold:0},
+      {id:"R606",name:"活在當下",category:"冰箱貼",price:150,stock:15,sold:0},
+      {id:"R607",name:"旺旺來",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R608",name:"有錢",category:"冰箱貼",price:150,stock:15,sold:0},
+      {id:"RH501",name:"歡喜",category:"冰箱貼",price:160,stock:15,sold:0},
+      {id:"RH502",name:"福",category:"冰箱貼",price:160,stock:20,sold:0},
+      {id:"R302",name:"開心（直角）",category:"冰箱貼",price:150,stock:10,sold:0},
+      {id:"R305",name:"歲月靜好（直角）",category:"冰箱貼",price:150,stock:15,sold:0},
       {id:"TB2601",name:"帆布袋",category:"帆布袋",price:450,stock:10,sold:0},
       {id:"CS2601-S",name:"水晶貼（小片）",category:"水晶貼",price:35,stock:180,sold:0},
       {id:"CS2601-M",name:"水晶貼（中片）",category:"水晶貼",price:70,stock:20,sold:0},
@@ -838,12 +835,20 @@
   // 這段負責把裝置追上主檔：改價、補缺的商品、淘汰不賣的、遷移舊分類名。
   // 原則：不動小何在現場調過的庫存與已售數字。
   const K_PATCH = "pos_patch_ver";
-  const PATCH_VER = 4;   // 2026-07-31：對齊營運管理 xlsx「文博商品清單」＋清掉水晶貼佔位圖
-  // 7-23 版的舊分類名 → 現行名（沒遷移的話新舊分類會並存，tab 會重複）
+  const PATCH_VER = 5;   // 2026-07-31：分類簡化成 10 類＋清掉最初版的測試資料
+  // 各版本的舊分類名 → 現行名（沒遷移的話新舊分類會並存，tab 會重複）
   const CAT_RENAME = {
-    "明信片：一般": "明信片", "明信片：凸版": "凸版明信片",
-    "海報：A4": "A4海報", "海報：細長": "細長海報",
+    // 7-23 版
+    "明信片：一般": "明信片", "明信片：凸版": "凸版",
+    "海報：A4": "海報", "海報：細長": "海報",
+    // 7-31 稍早那版（13 類），小何要求合併成 10 類
+    "凸版明信片": "凸版", "凸版方形": "凸版",
+    "A4海報": "海報", "細長海報": "海報",
+    "冰箱貼-春節": "冰箱貼",
   };
+  // 2026-06 最初版的測試資料（分類是「A4海報+框」那種，商品叫「XXX 款式1」，id 為 p1~p25）
+  // 小何早就不要了，但一直留在裝置的 localStorage 裡沒清掉 → 這次直接刪除
+  function isDemoJunk(p){ return /^p\d+$/.test(p.id) && /款式\d+$/.test(p.name || ""); }
   // 這幾款裝置上可能存著會誤導的佔位圖（水晶貼那張紅字寫「未定價」，但早就定價了）
   // → 清掉圖，卡片留品名＋價格就好。之後上傳真照片不會被動到（patch 只跑一次）。
   const CLEAR_IMG_IDS = ["CS2601-S", "CS2601-M", "CS2601-L"];
@@ -857,6 +862,10 @@
     if (firstRun){ save(K_PATCH, PATCH_VER); return; }   // seed 已是新值
     if ((+load(K_PATCH, 0)) >= PATCH_VER) return;
     const notes = [];
+
+    // 0) 清掉 2026-06 最初版留下的測試商品（不是真商品，直接刪）
+    const junk = products.filter(isDemoJunk).length;
+    if (junk){ products = products.filter(p=> !isDemoJunk(p)); notes.push("清掉舊測試資料 "+junk+" 筆"); }
 
     // 1) 舊分類名 → 現行名（順便帶著商品一起改）
     let renamed = 0;
@@ -1078,10 +1087,10 @@
   // 規則來源：100_Todo/projects/2026-07-31_文博POS升級規格.md
   // pctGroup = 每 N 件打折（折扣優先套在單價高的品項，對客人最有利）
   // bundle   = 每 N 件固定價
-  // 冰箱貼／冰箱貼-春節 不在任何規則裡 → 一律原價
+  // 冰箱貼不在任何規則裡 → 一律原價
   const PROMO_RULES = [
     { code:"paper3",   label:"紙品任選 3 件 8 折", type:"pctGroup", size:3, pct:0.8,
-      cats:["明信片","凸版明信片","細長海報","A4海報","凸版方形"] },
+      cats:["明信片","凸版","海報"] },
     { code:"crystal3", label:"水晶貼任選 3 片 8 折", type:"pctGroup", size:3, pct:0.8,
       cats:["水晶貼"] },
     { code:"sticker3", label:"貼紙 3 張 $50", type:"bundle", size:3, bundlePrice:50,

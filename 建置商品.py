@@ -32,9 +32,17 @@ OUT_SEED = os.path.join(HERE, "seed_snippet.txt")
 MAX_SIDE, QUALITY = 400, 70
 EXTS = (".jpg", ".jpeg", ".png", ".webp", ".heic")
 
-CAT_ORDER = ["明信片", "凸版明信片", "凸版方形", "A4海報", "細長海報",
-             "造型卡", "貼紙", "書籤", "L夾", "冰箱貼", "冰箱貼-春節",
-             "帆布袋", "水晶貼"]
+# POS 收銀台的分類比主檔粗——現場靠手機操作，tab 太多要一直橫滑。
+# 小何 2026-07-31 決定：凸版兩類合併、海報兩類合併、冰箱貼春節併回冰箱貼。
+# ⚠️ 改這裡一定要同步改 index.html 的 SEED_CATS、CAT_COLORS、PROMO_RULES 的 cats，
+#    並把 PATCH_VER +1。
+CAT_MAP = {
+    "凸版明信片": "凸版", "凸版方形": "凸版",
+    "A4海報": "海報", "細長海報": "海報",
+    "冰箱貼-春節": "冰箱貼",
+}
+CAT_ORDER = ["明信片", "凸版", "海報", "造型卡", "貼紙",
+             "書籤", "L夾", "冰箱貼", "帆布袋", "水晶貼"]
 
 def num(v, default=0):
     try:
@@ -68,7 +76,9 @@ def build_products():
             elif cat == "書籤": p = 29      # 贈品，但可 $29 加購
             elif cat == "帆布袋": p = 450
             else: p = 0
-        prods.append({"id": code, "name": str(name).strip(), "category": cat,
+        # 價格 fallback 用主檔類別判斷完了，才映射成 POS 的粗分類
+        prods.append({"id": code, "name": str(name).strip(),
+                      "category": CAT_MAP.get(cat, cat),
                       "price": p, "stock": stock, "sold": 0})
     # 水晶貼 3 尺寸 SKU（庫存從盤點表加總）
     wsx = wb["水晶貼款式盤點表"]

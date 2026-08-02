@@ -170,6 +170,11 @@
     border: 1px dashed var(--gold); border-radius: 10px; background: #fdfaf2; color: #8a6d1f;
     cursor: pointer; font-family: inherit; }
   .addon-btn:active { background: #f7efdc; }
+  .note-input { width: 100%; box-sizing: border-box; font-size: 14px; padding: 10px 12px; margin-bottom: 10px;
+    border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font-family: inherit; }
+  .note-input::placeholder { color: var(--ink-soft); }
+  .note-input.confirmed { border-color: transparent; background: #fff4e8; }
+  .order-note { font-size: 12px; color: #8a6d1f; margin-top: 3px; }
 
   .total-row { display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0; }
   .total-row .lab { font-size: 16px; font-weight: 700; }
@@ -461,6 +466,7 @@
         <div class="total-row"><span class="lab">應收</span><span class="val" id="grandTotal">$0</span></div>
         <div class="gift-banner" id="giftBanner"></div>
         <button class="addon-btn" id="addonBookmark">＋ $29 加購透卡書籤</button>
+        <input type="text" class="note-input" id="cartNote" placeholder="備註（客訂／取貨／換貨…免填）" maxlength="60">
         <div class="pay-btns">
           <button class="pay-cash" id="payCash" disabled>現金結帳</button>
           <button class="pay-line" id="payLine" disabled>LINE Pay</button>
@@ -667,6 +673,7 @@
       <button class="ep-btn" data-pay="cash">現金</button>
       <button class="ep-btn" data-pay="line">LINE Pay</button>
     </div>
+    <input type="text" class="note-input" id="editNote" placeholder="備註（客訂／取貨／換貨…免填）" maxlength="60" style="margin-top:12px">
     <div class="modal-btns">
       <button class="danger" id="editDelete">刪除整筆</button>
       <button class="cancel" id="editCancel">取消</button>
@@ -1241,7 +1248,7 @@
 
   document.getElementById("clearCart").onclick = ()=>{
     if (!cart.length) return;
-    if (confirm("確定清空購物車？")){ cart=[]; document.getElementById("discType").value="none"; document.getElementById("discValue").value=""; document.getElementById("discValue").disabled=true; renderCart(); }
+    if (confirm("確定清空購物車？")){ cart=[]; document.getElementById("discType").value="none"; document.getElementById("discValue").value=""; document.getElementById("discValue").disabled=true; const cn=document.getElementById("cartNote"); cn.value=""; cn.classList.remove("confirmed"); renderCart(); }
   };
 
   // 付款
@@ -1289,6 +1296,8 @@
   }
   document.getElementById("cashGot").addEventListener("input", ()=>{ document.getElementById("cashGot").classList.remove("confirmed"); updateCashChange(); });
   bindTwoStage(document.getElementById("cashGot"), ()=>{ if(!document.getElementById("cashConfirm").disabled) document.getElementById("cashConfirm").click(); });
+  bindTwoStage(document.getElementById("cartNote"), inp=> document.getElementById("cartNote").blur());
+  bindTwoStage(document.getElementById("editNote"), inp=> document.getElementById("editNote").blur());
   document.getElementById("cashCancel").onclick = ()=> document.getElementById("cashModal").classList.remove("show");
   document.getElementById("cashConfirm").onclick = ()=>{
     const got = parseFloat(document.getElementById("cashGot").value)||0;
@@ -1313,6 +1322,8 @@
       giftBookmark: r.hasGift ? 1 : 0,
       total: total, payment: payment
     };
+    const note = document.getElementById("cartNote").value.trim();
+    if (note) sale.note = note;
     if (payment==="cash") sale.cashGot = cashGot;
     sales.push(sale);
     save(K_SALES, sales); save(K_PROD, products);
@@ -1320,6 +1331,7 @@
     cart = [];
     document.getElementById("discType").value="none";
     document.getElementById("discValue").value=""; document.getElementById("discValue").disabled=true;
+    const cn = document.getElementById("cartNote"); cn.value=""; cn.classList.remove("confirmed");
     renderPOS(); closeCart();
     const pname = payment==="cash" ? "現金" : "LINE Pay";
     toast("✓ 完成結帳 "+money(total)+"（"+pname+"）" + (payment==="cash" && cashGot!=null ? "，找零 "+money(cashGot-total) : ""));
@@ -1598,9 +1610,10 @@
         const t = new Date(s.ts); const p=n=>String(n).padStart(2,"0");
         const tstr = p(t.getHours())+":"+p(t.getMinutes());
         const combo = s.items.map(it=> esc(it.name)+' ×'+it.qty).join("、");
+        const noteHtml = s.note ? '<div class="order-note">📝 '+esc(s.note)+'</div>' : '';
         const disc = discLabel(s);
         const pay = s.payment==="cash" ? "現金" : "LINE Pay";
-        return '<tr class="order-row" data-id="'+s.id+'"><td class="num">'+(daySales.length-idx)+'</td><td>'+tstr+'</td><td>'+combo+'</td><td class="num">'+disc+'</td><td class="num">'+money(s.total)+'</td><td>'+pay+' <span class="edit-hint">✎</span></td></tr>';
+        return '<tr class="order-row" data-id="'+s.id+'"><td class="num">'+(daySales.length-idx)+'</td><td>'+tstr+'</td><td>'+combo+noteHtml+'</td><td class="num">'+disc+'</td><td class="num">'+money(s.total)+'</td><td>'+pay+' <span class="edit-hint">✎</span></td></tr>';
       }).join("");
     }
 
@@ -1645,12 +1658,14 @@
                                 ...(it.gift?{gift:1}:{}), ...(it.addon?{addon:1}:{}), ...(it.custom?{custom:1}:{}) })),
       discType: s.discountType || "none",
       discValue: s.discountValue || 0,
-      payment: s.payment
+      payment: s.payment,
+      note: s.note || ""
     };
     const t = new Date(s.ts); const p=n=>String(n).padStart(2,"0");
     document.getElementById("editTime").textContent = "成立 "+p(t.getHours())+":"+p(t.getMinutes())+"　改完按儲存，庫存會自動重算";
     const dt = document.getElementById("editDiscType"); dt.value = editWork.discType;
     const dv = document.getElementById("editDiscValue"); dv.value = editWork.discType==="none"?"":editWork.discValue; dv.disabled = editWork.discType==="none";
+    const en = document.getElementById("editNote"); en.value = editWork.note; en.classList.remove("confirmed");
     renderEditItems(); updateEditTotals(); updateEditPay();
     document.getElementById("editModal").classList.add("show");
   }
@@ -1712,6 +1727,8 @@
     s.discountType = editWork.discType; s.discountValue = editWork.discValue; s.manualDiscount = r.manualDisc;
     s.giftBookmark = r.hasGift ? 1 : 0;
     s.total = r.total; s.payment = editWork.payment;
+    const enote = document.getElementById("editNote").value.trim();
+    if (enote) s.note = enote; else delete s.note;
     if (s.payment!=="cash") delete s.cashGot;
     save(K_PROD,products); save(K_SALES,sales);
     document.getElementById("editModal").classList.remove("show"); renderReport();
@@ -1730,7 +1747,7 @@
     const daySales = scopedSales();
     if (!daySales.length){ toast(allDays ? "還沒有任何交易紀錄" : "這天沒有交易紀錄"); return; }
     // 一筆訂單一列，跟畫面的「每筆訂單明細」一致
-    const rows = [["訂單序號","日期","時間","品項組合","件數","小計","自動優惠","優惠明細","手動折扣","應收","贈品書籤","付款方式"]];
+    const rows = [["訂單序號","日期","時間","品項組合","件數","小計","自動優惠","優惠明細","手動折扣","應收","贈品書籤","付款方式","備註"]];
     daySales.forEach((s, i)=>{
       const t = new Date(s.ts); const p=n=>String(n).padStart(2,"0");
       const tstr = p(t.getHours())+":"+p(t.getMinutes())+":"+p(t.getSeconds());
@@ -1741,7 +1758,7 @@
       const manual = s.discountType==="amount" ? "減"+s.discountValue : (s.discountType==="percent" ? s.discountValue+" 折" : "");
       rows.push([i+1, dateOf(s.ts), tstr, combo, qty, s.subtotal, s.autoDiscount||0, promoTxt,
                  manual + (s.manualDiscount ? "（−"+s.manualDiscount+"）" : ""), s.total,
-                 s.giftBookmark ? 1 : 0, pay]);
+                 s.giftBookmark ? 1 : 0, pay, s.note || ""]);
     });
     const csv = "﻿" + rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
     downloadBlob(csv, "文博會訂單_"+(allDays ? "全展期" : day)+".csv", "text/csv");

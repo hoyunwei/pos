@@ -332,6 +332,15 @@
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  .backup-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+    display: none; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+    background: #f2a71b; color: #3a2c00; font-size: 15px; font-weight: 700;
+    padding: 10px 16px; box-shadow: var(--shadow-lg); }
+  .backup-bar.show { display: flex; }
+  .backup-bar button { border: none; border-radius: 8px; padding: 7px 16px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .backup-bar .bk-now { background: #3a2c00; color: #fff; }
+  .backup-bar .bk-later { background: transparent; color: #3a2c00; border: 1px solid #3a2c00; }
+
   .backup-note { font-size: 13px; color: var(--ink-soft); background: #fbf6e9; border: 1px solid #ecdfba; border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; }
   .hint-line { font-size: 13px; color: var(--ink-soft); margin-top: 10px; }
 
@@ -429,6 +438,12 @@
 </style>
 </head>
 <body>
+
+<div class="backup-bar" id="backupBar">
+  <span>⚠️ 已賣 <span id="bkCount">0</span> 筆未備份，建議匯出保平安</span>
+  <button class="bk-now" id="bkNow">立即備份</button>
+  <button class="bk-later" id="bkLater">稍後</button>
+</div>
 
 <header>
   <div class="brand"><span class="seal">筆</span><span class="brand-text">文博會收銀台</span></div>
@@ -703,7 +718,9 @@
   "use strict";
 
   // ---------- 資料層 ----------
-  const K_PROD = "pos_products", K_SALES = "pos_sales", K_SET = "pos_settings";
+  const K_PROD = "pos_products", K_SALES = "pos_sales", K_SET = "pos_settings", K_BK = "pos_backup_len";
+  const BACKUP_EVERY = 20;   // 每累積這麼多筆未備份就提醒
+  let bkDismissed = 0;       // 上次按「稍後」時的未備份筆數（記憶體，重整即歸零）
   function load(key, def){ try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch(e){ return def; } }
   function save(key, val){
     try { localStorage.setItem(key, JSON.stringify(val)); return true; }
@@ -1334,6 +1351,7 @@
     if (payment==="cash") sale.cashGot = cashGot;
     sales.push(sale);
     save(K_SALES, sales); save(K_PROD, products);
+    checkBackupReminder();
     // 清空
     cart = [];
     document.getElementById("discType").value="none";
@@ -1798,10 +1816,30 @@
     downloadBlob(csv, "文博會品項銷量_"+(allDays ? "全展期" : day)+".csv", "text/csv");
     toast("已匯出品項銷量 CSV");
   };
-  document.getElementById("exportAll").onclick = ()=>{
+  function doBackup(){
     downloadJSON({ exportedAt: Date.now(), products, sales, settings }, "文博會POS_完整備份_"+todayStr()+".json");
-    toast("已匯出完整備份");
+    save(K_BK, sales.length); bkDismissed = 0;
+    checkBackupReminder();
+    toast("已匯出完整備份，未備份計數歸零");
+  }
+  function checkBackupReminder(){
+    const bar = document.getElementById("backupBar");
+    if (!bar) return;
+    const unbacked = sales.length - load(K_BK, 0);
+    if (unbacked >= BACKUP_EVERY && unbacked >= bkDismissed + BACKUP_EVERY){
+      document.getElementById("bkCount").textContent = unbacked;
+      bar.classList.add("show");
+    } else {
+      bar.classList.remove("show");
+    }
+  }
+  document.getElementById("exportAll").onclick = doBackup;
+  document.getElementById("bkNow").onclick = doBackup;
+  document.getElementById("bkLater").onclick = ()=>{
+    bkDismissed = sales.length - load(K_BK, 0);
+    checkBackupReminder();
   };
+  checkBackupReminder();
 
   // ---------- 下載輔助 ----------
   function downloadJSON(obj, fname){ downloadBlob(JSON.stringify(obj,null,2), fname, "application/json"); }

@@ -12,7 +12,7 @@
   - 圖片會自動縮到最長邊 400px、轉 JPEG 品質 0.7（避免塞爆 POS 的本機儲存空間）
   - 產出：商品匯入_文博.json（直接拿去 POS 的「商品管理 → 匯入商品 JSON」）
 """
-import json, os, base64, io, sys
+import json, os, base64, io, sys, re
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -56,8 +56,9 @@ def main():
     for p in data["products"]:
         pid = p["id"]
         # 以貨號開頭配對（優先完全等於貨號的檔名）
+        # 貨號後面必須接底線或副檔名，否則 ST2601 會誤抓到 ST2601-3 的圖
         cands = [f for f in files if os.path.splitext(f)[0] == pid] or \
-                [f for f in files if f.startswith(pid)]
+                [f for f in files if re.match(re.escape(pid) + r"_", f)]
         if not cands:
             missing.append(f"{pid} {p['name']}")
             p.pop("img", None)

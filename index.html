@@ -543,8 +543,7 @@
       <input type="date" id="reportDate" class="date-pick">
       <button class="btn" id="allDaysBtn">全展期合計</button>
       <div class="actions">
-        <button class="btn" id="exportCsv">匯出訂單 CSV</button>
-        <button class="btn" id="exportItemCsv">匯出品項銷量 CSV</button>
+        <button class="btn" id="exportXlsx">匯出報表 Excel</button>
         <button class="btn" id="exportAll">匯出全部備份 JSON</button>
       </div>
     </div>
@@ -1767,11 +1766,8 @@
     toast("已刪除訂單，庫存已還原");
   };
 
-  document.getElementById("exportCsv").onclick = ()=>{
-    const day = document.getElementById("reportDate").value || todayStr();
-    const daySales = scopedSales();
-    if (!daySales.length){ toast(allDays ? "還沒有任何交易紀錄" : "這天沒有交易紀錄"); return; }
-    // 一筆訂單一列，跟畫面的「每筆訂單明細」一致
+  // 訂單明細（一筆訂單一列，跟畫面的「每筆訂單明細」一致）
+  function buildOrderRows(daySales){
     const rows = [["訂單序號","日期","時間","品項組合","件數","小計","自動優惠","優惠明細","手動折扣","應收","贈品書籤","付款方式","備註"]];
     daySales.forEach((s, i)=>{
       const t = new Date(s.ts); const p=n=>String(n).padStart(2,"0");
@@ -1785,16 +1781,10 @@
                  manual + (s.manualDiscount ? "（−"+s.manualDiscount+"）" : ""), s.total,
                  s.giftBookmark ? 1 : 0, pay, s.note || ""]);
     });
-    const csv = "﻿" + rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
-    downloadBlob(csv, "文博會訂單_"+(allDays ? "全展期" : day)+".csv", "text/csv");
-    toast("已匯出訂單 CSV");
-  };
-
-  // 品項銷量 CSV → 展後回填「三支筆商品營運管理.xlsx / 銷售實績」頁
-  document.getElementById("exportItemCsv").onclick = ()=>{
-    const day = document.getElementById("reportDate").value || todayStr();
-    const scoped = scopedSales();
-    if (!scoped.length){ toast(allDays ? "還沒有任何交易紀錄" : "這天沒有交易紀錄"); return; }
+    return rows;
+  }
+  // 品項銷量（每個商品加總，展後回填「三支筆商品營運管理.xlsx / 銷售實績」頁）
+  function buildItemRows(scoped){
     const agg = {};
     scoped.forEach(s=> s.items.forEach(it=>{
       const key = it.id;
@@ -1812,9 +1802,19 @@
     });
     // 沒賣出的也帶進去，展後盤點才對得起來
     products.forEach(p=>{ if(!agg[p.id]) rows.push([p.id, p.name, p.category, p.price, 0, 0, 0, p.stock]); });
-    const csv = "﻿" + rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
-    downloadBlob(csv, "文博會品項銷量_"+(allDays ? "全展期" : day)+".csv", "text/csv");
-    toast("已匯出品項銷量 CSV");
+    return rows;
+  }
+  // 一鍵匯出：訂單明細＋品項銷量 兩分頁的 Excel
+  document.getElementById("exportXlsx").onclick = ()=>{
+    const day = document.getElementById("reportDate").value || todayStr();
+    const scoped = scopedSales();
+    if (!scoped.length){ toast(allDays ? "還沒有任何交易紀錄" : "這天沒有交易紀錄"); return; }
+    const bytes = buildXlsx([
+      { name: "訂單明細", rows: buildOrderRows(scoped) },
+      { name: "品項銷量", rows: buildItemRows(scoped) }
+    ]);
+    downloadBytes(bytes, "文博會報表_"+(allDays ? "全展期" : day)+".xlsx");
+    toast("已匯出報表 Excel（訂單＋品項兩分頁）");
   };
   function doBackup(){
     downloadJSON({ exportedAt: Date.now(), products, sales, settings }, "文博會POS_完整備份_"+todayStr()+".json");
@@ -1849,6 +1849,71 @@
     a.href = URL.createObjectURL(blob); a.download = fname;
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  }
+  function downloadBytes(bytes, fname){
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = fname;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  }
+
+  // ---------- 極簡 XLSX 產生器（store-only ZIP，零外部套件，維持單檔離線）----------
+  // 資料量小（幾百列），ZIP 用 store 不壓縮即可；Excel／Numbers 都能直接開。
+  const _crcTable = (()=>{ const t=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+  function _crc32(bytes){ let c=0xFFFFFFFF; for(let i=0;i<bytes.length;i++) c=_crcTable[(c^bytes[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+  const _enc = new TextEncoder();
+  function _colName(n){ let s=""; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=(n-m-1)/26; } return s; }
+  function _cellXml(v, ref){
+    if (typeof v === "number" && isFinite(v)) return '<c r="'+ref+'"><v>'+v+'</v></c>';
+    return '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+esc(v==null?"":String(v))+'</t></is></c>';
+  }
+  function _sheetXml(rows){
+    let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    rows.forEach((row, ri)=>{
+      x += '<row r="'+(ri+1)+'">';
+      row.forEach((v, ci)=> x += _cellXml(v, _colName(ci)+(ri+1)));
+      x += '</row>';
+    });
+    return x + '</sheetData></worksheet>';
+  }
+  function _zipStore(files){
+    const u16=n=>[n&255,(n>>8)&255]; const u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+    const parts=[], central=[]; let offset=0;
+    files.forEach(f=>{
+      const nb=_enc.encode(f.name), crc=_crc32(f.bytes), sz=f.bytes.length;
+      const local=[].concat(u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(sz),u32(sz),u16(nb.length),u16(0));
+      parts.push(new Uint8Array(local), nb, f.bytes);
+      const cen=[].concat(u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(sz),u32(sz),u16(nb.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset));
+      central.push(new Uint8Array(cen), nb);
+      offset += 30 + nb.length + sz;
+    });
+    const cdStart=offset; let cdSize=0; central.forEach(c=> cdSize+=c.length);
+    const eocd=new Uint8Array([].concat(u32(0x06054b50),u16(0),u16(0),u16(files.length),u16(files.length),u32(cdSize),u32(cdStart),u16(0)));
+    const all=parts.concat(central,[eocd]); let total=0; all.forEach(a=> total+=a.length);
+    const out=new Uint8Array(total); let p=0; all.forEach(a=>{ out.set(a,p); p+=a.length; });
+    return out;
+  }
+  function buildXlsx(sheets){   // sheets: [{name, rows}]，rows 為二維陣列
+    const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      sheets.map((s,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('')+
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/></Types>';
+    const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+    const wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      sheets.map((s,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')+'</Relationships>';
+    const wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
+      sheets.map((s,i)=>'<sheet name="'+esc(s.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')+'</sheets></workbook>';
+    const files=[
+      {name:"[Content_Types].xml", bytes:_enc.encode(ct)},
+      {name:"_rels/.rels", bytes:_enc.encode(rels)},
+      {name:"xl/workbook.xml", bytes:_enc.encode(wb)},
+      {name:"xl/_rels/workbook.xml.rels", bytes:_enc.encode(wbRels)}
+    ];
+    sheets.forEach((s,i)=> files.push({name:"xl/worksheets/sheet"+(i+1)+".xml", bytes:_enc.encode(_sheetXml(s.rows))}));
+    return _zipStore(files);
   }
   function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 

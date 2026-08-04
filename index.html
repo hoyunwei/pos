@@ -812,7 +812,7 @@
       {id:"PA2402",name:"平安",category:"海報",price:250,stock:15,sold:0},
       {id:"PA2501",name:"家",category:"海報",price:250,stock:18,sold:0},
       {id:"PA2502",name:"暖居",category:"海報",price:250,stock:24,sold:0},
-      {id:"PA2601",name:"平安蘋果",category:"海報",price:260,stock:30,sold:0},
+      {id:"PA2601",name:"平安蘋果",category:"海報",price:250,stock:30,sold:0},
       {id:"PA2403",name:"保持熱愛",category:"海報",price:250,stock:5,sold:0},
       {id:"PA2404",name:"聽雨",category:"海報",price:250,stock:5,sold:0},
       {id:"PA2405",name:"放下",category:"海報",price:250,stock:5,sold:0},
@@ -876,7 +876,7 @@
   // 這段負責把裝置追上主檔：改價、補缺的商品、淘汰不賣的、遷移舊分類名。
   // 原則：不動小何在現場調過的庫存與已售數字。
   const K_PATCH = "pos_patch_ver";
-  const PATCH_VER = 6;   // 2026-08-03：分類順序改為 明信片→海報→凸版→造型卡→L夾→冰箱貼→貼紙→水晶貼→帆布袋→書籤
+  const PATCH_VER = 7;   // 2026-08-05：平安蘋果海報 260→250（與其餘 A4 海報一致）
   // 各版本的舊分類名 → 現行名（沒遷移的話新舊分類會並存，tab 會重複）
   const CAT_RENAME = {
     // 7-23 版
@@ -1134,8 +1134,8 @@
       cats:["明信片","凸版","海報"] },
     { code:"crystalS3", label:"水晶貼小片 3 片 $100", type:"bundle", size:3, bundlePrice:100,
       ids:["CS2601-S"] },              // 只認小片；中片、大片維持原價
-    { code:"sticker3", label:"貼紙 3 張 $50", type:"bundle", size:3, bundlePrice:50,
-      cats:["貼紙"] },
+    { code:"sticker3", label:"全斷貼紙 3 張 $50", type:"bundle", size:3, bundlePrice:50,
+      ids:["ST2601"] },                // 只認全斷貼紙（$20）；S406、S501 那兩款 $45 的維持原價
     { code:"lfolder2", label:"L夾 2 個 $180", type:"bundle", size:2, bundlePrice:180,
       cats:["L夾"] },
   ];

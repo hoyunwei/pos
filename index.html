@@ -299,8 +299,17 @@
   .cash-input.confirmed { border-bottom-color: transparent; }
   .quick-cash { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
   .quick-cash button { font-size: 15px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); cursor: pointer; font-weight: 600; }
+  .quick-cash button.qc-exact { background: var(--green); color: #fff; border-color: var(--green); }
   .change-val { color: var(--green-dark); }
   .change-val.neg { color: var(--vermilion); }
+  /* 結帳完成定格畫面 */
+  .done-card { text-align: center; width: 340px; }
+  .done-check { width: 76px; height: 76px; margin: 4px auto 12px; border-radius: 50%; background: var(--green); color: #fff; font-size: 46px; line-height: 76px; font-weight: 800; }
+  .done-title { font-size: 22px; margin: 0 0 10px; }
+  .done-total { font-size: 40px; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .done-line { font-size: 15px; color: var(--ink-soft); margin-top: 6px; }
+  .done-change { font-size: 22px; font-weight: 800; color: var(--green-dark); margin-top: 10px; min-height: 26px; }
+  .done-next { width: 100%; font-size: 18px; padding: 14px; margin-top: 18px; }
   .modal-btns { display: flex; gap: 10px; margin-top: 18px; }
   .modal-btns button { flex: 1; font-size: 16px; font-weight: 700; padding: 13px 0; border: none; border-radius: 11px; cursor: pointer; }
   .modal-btns .cancel { background: var(--paper); color: var(--ink-soft); }
@@ -543,6 +552,7 @@
     <div class="panel-title">日結報表
       <input type="date" id="reportDate" class="date-pick">
       <button class="btn" id="allDaysBtn">全展期合計</button>
+      <button class="btn" id="floatBtn">💰 開店備用金</button>
       <div class="actions">
         <button class="btn" id="exportXlsx">匯出報表 Excel</button>
         <button class="btn" id="exportAll">匯出全部備份 JSON</button>
@@ -660,6 +670,33 @@
     </div>
   </section>
 </main>
+
+<!-- 開店備用金 Modal -->
+<div class="modal-bg" id="floatModal">
+  <div class="modal">
+    <h3>開店備用金</h3>
+    <div class="m-sub" id="floatSub">記錄今天帶了多少零錢來，收攤對現金用</div>
+    <div class="cash-row"><span>金額</span><input type="number" class="cash-input" id="floatAmt" inputmode="numeric" placeholder="0"></div>
+    <div class="modal-btns">
+      <button class="cancel" id="floatCancel">取消</button>
+      <button class="ok" id="floatSave">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 結帳完成 定格畫面 -->
+<div class="modal-bg" id="doneModal">
+  <div class="modal done-card">
+    <div class="done-check">✓</div>
+    <h3 class="done-title">結帳完成</h3>
+    <div class="done-total" id="doneTotal">$0</div>
+    <div class="done-line" id="donePay">現金</div>
+    <div class="done-change" id="doneChange"></div>
+    <div class="modal-btns">
+      <button class="ok done-next" id="doneNext">下一筆 →</button>
+    </div>
+  </div>
+</div>
 
 <!-- 現金結帳 Modal -->
 <div class="modal-bg" id="cashModal">
@@ -841,6 +878,7 @@
       {id:"FM2403",name:"常樂",category:"冰箱貼",price:150,stock:15,sold:0},
       {id:"FM2404",name:"逍遙",category:"冰箱貼",price:150,stock:15,sold:0},
       {id:"R401",name:"心想柿成",category:"冰箱貼",price:150,stock:20,sold:0},
+      {id:"R402",name:"山珍海味",category:"冰箱貼",price:150,stock:10,sold:0},
       {id:"R501",name:"天天有錢花",category:"冰箱貼",price:150,stock:20,sold:0},
       {id:"R502",name:"日日好日",category:"冰箱貼",price:150,stock:20,sold:0},
       {id:"R503",name:"招財進寶",category:"冰箱貼",price:150,stock:10,sold:0},
@@ -869,6 +907,7 @@
   let products = firstRun ? buildSeed() : load(K_PROD, []);
   let sales = load(K_SALES, []);
   let settings = load(K_SET, { shopName: "三支筆", categories: SEED_CATS.slice() });
+  if (!settings.floats) settings.floats = {};   // 每天開店備用金：{ "YYYY-MM-DD": 金額 }
   if (firstRun){ settings.categories = SEED_CATS.slice(); save(K_PROD, products); save(K_SET, settings); }
   // 沒商品時給範例分類
   if (!settings.categories || !settings.categories.length) settings.categories = SEED_CATS.slice();
@@ -878,7 +917,7 @@
   // 這段負責把裝置追上主檔：改價、補缺的商品、淘汰不賣的、遷移舊分類名。
   // 原則：不動小何在現場調過的庫存與已售數字。
   const K_PATCH = "pos_patch_ver";
-  const PATCH_VER = 7;   // 2026-08-05：平安蘋果海報 260→250（與其餘 A4 海報一致）
+  const PATCH_VER = 8;   // 2026-08-06：補上 R402 山珍海味冰箱貼（$150、庫存 10，原文博清單漏列）
   // 各版本的舊分類名 → 現行名（沒遷移的話新舊分類會並存，tab 會重複）
   const CAT_RENAME = {
     // 7-23 版
@@ -1309,10 +1348,15 @@
     document.getElementById("cashConfirm").disabled = true;
     // 快捷金額
     const qc = document.getElementById("quickCash"); qc.innerHTML="";
+    // 收到剛好（不用找零）擺第一顆、標色
+    const exact=document.createElement("button"); exact.textContent="剛好 "+money(cashDue);
+    exact.className="qc-exact";
+    exact.onclick=()=>{ got.value=cashDue; got.classList.remove("confirmed"); updateCashChange(); };
+    qc.appendChild(exact);
     const presets = quickCashPresets(cashDue);
     presets.forEach(v=>{
       const b=document.createElement("button"); b.textContent=money(v);
-      b.onclick=()=>{ got.value=v; updateCashChange(); }; qc.appendChild(b);
+      b.onclick=()=>{ got.value=v; got.classList.remove("confirmed"); updateCashChange(); }; qc.appendChild(b);
     });
     document.getElementById("cashModal").classList.add("show");
     setTimeout(()=>got.focus(), 50);
@@ -1379,8 +1423,17 @@
     const cc = document.getElementById("cartCarrier"); cc.value=""; cc.classList.remove("confirmed");
     renderPOS(); closeCart();
     const pname = payment==="cash" ? "現金" : "LINE Pay";
-    toast("✓ 完成結帳 "+money(total)+"（"+pname+"）" + (payment==="cash" && cashGot!=null ? "，找零 "+money(cashGot-total) : ""));
+    // 定格畫面（要按「下一筆」才消失，避免慌亂中忘記按過沒）
+    document.getElementById("doneTotal").textContent = money(total);
+    document.getElementById("donePay").textContent = pname;
+    const dc = document.getElementById("doneChange");
+    if (payment==="cash" && cashGot!=null){
+      const change = cashGot - total;
+      dc.textContent = change>0 ? "找零 "+money(change) : "收到剛好，免找零";
+    } else { dc.textContent = ""; }
+    document.getElementById("doneModal").classList.add("show");
   }
+  document.getElementById("doneNext").onclick = ()=> document.getElementById("doneModal").classList.remove("show");
 
   // ================= 商品管理 =================
   function refreshCatSelect(sel, includeAdd){
@@ -1592,6 +1645,31 @@
   let allDays = false;
   document.getElementById("allDaysBtn").onclick = ()=>{ allDays = !allDays; renderReport(); };
 
+  // 開店備用金：記在 settings.floats[日期]，收攤時算「抽屜應有現金」
+  function reportDay(){ return document.getElementById("reportDate").value || todayStr(); }
+  document.getElementById("floatBtn").onclick = ()=>{
+    const day = reportDay();
+    document.getElementById("floatSub").textContent =
+      (day===todayStr() ? "今天" : day) + " 帶了多少零錢來？收攤對現金用";
+    const amt = document.getElementById("floatAmt");
+    amt.value = (settings.floats[day]!=null) ? settings.floats[day] : "";
+    amt.classList.remove("confirmed");
+    document.getElementById("floatModal").classList.add("show");
+    setTimeout(()=>amt.focus(), 50);
+  };
+  document.getElementById("floatCancel").onclick = ()=> document.getElementById("floatModal").classList.remove("show");
+  document.getElementById("floatSave").onclick = ()=>{
+    const day = reportDay();
+    const v = document.getElementById("floatAmt").value.trim();
+    if (v==="") delete settings.floats[day];
+    else settings.floats[day] = Math.round(parseFloat(v)||0);
+    save(K_SET, settings);
+    document.getElementById("floatModal").classList.remove("show");
+    renderReport();
+    toast(v==="" ? "已清除今日備用金" : "已記錄開店備用金");
+  };
+  bindTwoStage(document.getElementById("floatAmt"), ()=> document.getElementById("floatSave").click());
+
   // 選到的訂單範圍：單日 或 全展期
   function scopedSales(){
     if (allDays) return sales.slice();
@@ -1622,10 +1700,21 @@
     const total = cash + line;
     const avg = count ? total / count : 0;
     const scopeLab = allDays ? "全展期" : "今日";
+    // 開店備用金 → 抽屜應有現金（備用金＋現金銷售）
+    let floatAmt = 0, floatKnown = false;
+    if (allDays){
+      const ks = Object.keys(settings.floats||{});
+      if (ks.length){ floatAmt = ks.reduce((a,k)=>a+(+settings.floats[k]||0),0); floatKnown = true; }
+    } else {
+      const day = document.getElementById("reportDate").value || todayStr();
+      if (settings.floats[day]!=null){ floatAmt = +settings.floats[day]; floatKnown = true; }
+    }
     document.getElementById("reportCards").innerHTML =
       card("tot",scopeLab+"總營收", money(total)) +
       card("cash","現金", money(cash)) +
       card("line","LINE Pay", money(line)) +
+      card("","開店備用金", floatKnown ? money(floatAmt) : "未記錄") +
+      card("cash","抽屜應有現金（備用金＋現金）", money(floatAmt + cash)) +
       card("","交易筆數", count + " 筆") +
       card("","客單價（平均每筆）", money(avg)) +
       card("","平均每筆件數", (count ? (units/count).toFixed(1) : "0") + " 件") +

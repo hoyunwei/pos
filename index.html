@@ -124,7 +124,19 @@
     border-left: 1px solid var(--line); display: flex; flex-direction: column;
   }
   .cart-head { padding: 14px 16px 8px; font-size: 16px; font-weight: 700; display: flex; align-items: center; }
-  .cart-head .clear { margin-left: auto; font-size: 13px; color: var(--ink-soft); background: none; border: none; cursor: pointer; }
+  .cart-head-btns { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+  .cart-head .ch-btn { font-size: 13px; color: var(--vermilion); background: none; border: none; cursor: pointer; font-weight: 700; padding: 0; }
+  .cart-head .ch-btn.on { color: var(--green-dark); }
+  .cart-head .clear { font-size: 13px; color: var(--ink-soft); background: none; border: none; cursor: pointer; }
+  /* 取回暫存單清單 */
+  .park-list { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; margin: 4px 0 2px; }
+  .park-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .park-row .pk-no { font-size: 17px; font-weight: 800; color: var(--vermilion); min-width: 40px; }
+  .park-row .pk-info { flex: 1; font-size: 13px; line-height: 1.5; color: var(--ink); }
+  .park-row .pk-info .pk-items { color: var(--ink-soft); }
+  .park-row .pk-take { font-size: 14px; font-weight: 700; padding: 8px 14px; border: none; border-radius: 9px; background: var(--green); color: #fff; cursor: pointer; }
+  .park-row .pk-del { font-size: 18px; background: none; border: none; color: var(--ink-soft); cursor: pointer; padding: 0 4px; }
+  .park-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 24px 8px; }
   .cart-items { flex: 1; overflow-y: auto; padding: 0 12px; }
   .cart-row {
     display: flex; align-items: center; gap: 8px; padding: 10px 4px;
@@ -474,7 +486,13 @@
     </div>
     <div class="cart-backdrop" id="cartBackdrop"></div>
     <div class="pos-right">
-      <div class="cart-head"><button class="cart-collapse" id="cartCollapse">▾</button>購物車 <button class="clear" id="clearCart">清空</button></div>
+      <div class="cart-head"><button class="cart-collapse" id="cartCollapse">▾</button>購物車
+        <span class="cart-head-btns">
+          <button class="ch-btn" id="parkCart">暫存</button>
+          <button class="ch-btn" id="recallPark">取回單 (0)</button>
+          <button class="clear" id="clearCart">清空</button>
+        </span>
+      </div>
       <div class="cart-items" id="cartItems"></div>
       <div class="cart-foot">
         <div class="sum-row"><span>小計</span><span id="subtotal">$0</span></div>
@@ -598,6 +616,17 @@
       </div>
 
       <div class="help-card">
+        <h3>🅿️ 暫存單：客人先逛、等一下再回來結</h3>
+        <ul>
+          <li>客人選了一些又想再逛 → 按購物車上方的<b>「暫存」</b>，這筆會存起來、購物車自動清空，換下一位客人</li>
+          <li>暫存單會給一個編號（#1、#2…），存了幾筆就顯示在<b>「取回單 (N)」</b></li>
+          <li>客人回來 → 按<b>「取回單」</b>，點那筆的「取回」就回到購物車繼續加，加完照常結帳</li>
+          <li>如果取回時購物車正好有別的東西，系統會先問你「要不要把現在這筆也先暫存」，不會蓋掉</li>
+          <li>暫存單存在這台 iPad 裡，<b>就算不小心重整或關掉也不會不見</b>；用不到的可以在清單裡按 🗑 刪掉</li>
+        </ul>
+      </div>
+
+      <div class="help-card">
         <h3>② 優惠系統會自動算，你不用心算 🎉</h3>
         <p>東西加進購物車，符合的優惠會<b>自動跳出來</b>並扣好金額，購物車下方會寫「套用了什麼優惠、折了多少」，可以直接唸給客人聽。</p>
         <ul>
@@ -670,6 +699,18 @@
     </div>
   </section>
 </main>
+
+<!-- 取回暫存單 Modal -->
+<div class="modal-bg" id="parkModal">
+  <div class="modal">
+    <h3>取回暫存單</h3>
+    <div class="m-sub">選一筆回到購物車繼續加，或刪掉不要的</div>
+    <div class="park-list" id="parkList"></div>
+    <div class="modal-btns">
+      <button class="cancel" id="parkClose">關閉</button>
+    </div>
+  </div>
+</div>
 
 <!-- 開店備用金 Modal -->
 <div class="modal-bg" id="floatModal">
@@ -768,6 +809,7 @@
 
   // ---------- 資料層 ----------
   const K_PROD = "pos_products", K_SALES = "pos_sales", K_SET = "pos_settings", K_BK = "pos_backup_len";
+  const K_PARKED = "pos_parked", K_PARK_SEQ = "pos_park_seq";   // 暫存單（掛單）
   const BACKUP_EVERY = 20;   // 每累積這麼多筆未備份就提醒
   let bkDismissed = 0;       // 上次按「稍後」時的未備份筆數（記憶體，重整即歸零）
   function load(key, def){ try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch(e){ return def; } }
@@ -997,6 +1039,8 @@
   })();
 
   let cart = [];            // {id, name, price, qty}
+  let parked = load(K_PARKED, []);       // 暫存單陣列
+  let parkSeq = load(K_PARK_SEQ, 0);     // 累加編號，不重複
   let activeCat = "全部";
   let uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 
@@ -1336,10 +1380,105 @@
   });
   document.getElementById("discValue").addEventListener("input", updateTotals);
 
+  // 把購物車與折扣／備註／載具清乾淨（暫存、結帳、清空共用）
+  function resetCartState(){
+    cart = [];
+    document.getElementById("discType").value = "none";
+    document.getElementById("discValue").value = ""; document.getElementById("discValue").disabled = true;
+    const cn = document.getElementById("cartNote"); cn.value = ""; cn.classList.remove("confirmed");
+    const cc = document.getElementById("cartCarrier"); cc.value = ""; cc.classList.remove("confirmed");
+  }
+
   document.getElementById("clearCart").onclick = ()=>{
     if (!cart.length) return;
-    if (confirm("確定清空購物車？")){ cart=[]; document.getElementById("discType").value="none"; document.getElementById("discValue").value=""; document.getElementById("discValue").disabled=true; const cn=document.getElementById("cartNote"); cn.value=""; cn.classList.remove("confirmed"); const cc=document.getElementById("cartCarrier"); cc.value=""; cc.classList.remove("confirmed"); renderCart(); }
+    if (confirm("確定清空購物車？")){ resetCartState(); renderCart(); }
   };
+
+  // ---------- 暫存單（掛單）----------
+  function currentCartSnapshot(){
+    return {
+      items: cart.map(c=>({ ...c })),
+      discType: document.getElementById("discType").value,
+      discValue: document.getElementById("discValue").value,
+      note: document.getElementById("cartNote").value,
+      carrier: document.getElementById("cartCarrier").value
+    };
+  }
+  function loadCartSnapshot(t){
+    cart = (t.items||[]).map(c=>({ ...c }));
+    const dt = document.getElementById("discType"); dt.value = t.discType || "none";
+    const dv = document.getElementById("discValue");
+    dv.value = t.discValue || ""; dv.disabled = (dt.value==="none");
+    const cn = document.getElementById("cartNote"); cn.value = t.note || ""; cn.classList.remove("confirmed");
+    const cc = document.getElementById("cartCarrier"); cc.value = t.carrier || ""; cc.classList.remove("confirmed");
+  }
+  function updateParkBtn(){
+    const b = document.getElementById("recallPark");
+    b.textContent = "取回單 (" + parked.length + ")";
+    b.classList.toggle("on", parked.length > 0);
+  }
+  function parkCart(){
+    if (!cart.length){ toast("購物車是空的，沒東西可暫存"); return; }
+    parkSeq += 1;
+    parked.push({ id: uid(), no: parkSeq, ts: Date.now(), ...currentCartSnapshot() });
+    save(K_PARKED, parked); save(K_PARK_SEQ, parkSeq);
+    const no = parkSeq;
+    resetCartState(); renderCart(); updateParkBtn();
+    toast("已暫存 #" + no + "（購物車已清空，換下一位）");
+  }
+  document.getElementById("parkCart").onclick = parkCart;
+
+  document.getElementById("recallPark").onclick = ()=>{
+    if (!parked.length){ toast("目前沒有暫存單"); return; }
+    renderParkList();
+    document.getElementById("parkModal").classList.add("show");
+  };
+  document.getElementById("parkClose").onclick = ()=> document.getElementById("parkModal").classList.remove("show");
+
+  function renderParkList(){
+    const box = document.getElementById("parkList");
+    if (!parked.length){ box.innerHTML = '<div class="park-empty">目前沒有暫存單</div>'; return; }
+    box.innerHTML = parked.slice().reverse().map(t=>{
+      const r = calcOrder(t.items||[], t.discType, t.discValue);
+      const units = (t.items||[]).reduce((s,c)=>s+c.qty, 0);
+      const names = (t.items||[]).map(c=> esc(c.name)+'×'+c.qty).join("、");
+      const dt = new Date(t.ts); const p=n=>String(n).padStart(2,"0");
+      const tstr = p(dt.getHours())+":"+p(dt.getMinutes());
+      return '<div class="park-row" data-id="'+t.id+'">'
+        + '<div class="pk-no">#'+t.no+'</div>'
+        + '<div class="pk-info"><b>'+units+' 件　'+money(r.total)+'</b>　<span style="color:var(--ink-soft)">'+tstr+'</span>'
+        + '<div class="pk-items">'+names+'</div></div>'
+        + '<button class="pk-take" data-take="'+t.id+'">取回</button>'
+        + '<button class="pk-del" data-del="'+t.id+'">🗑</button></div>';
+    }).join("");
+    box.querySelectorAll("[data-take]").forEach(b=> b.onclick = ()=> recallPark(b.getAttribute("data-take")));
+    box.querySelectorAll("[data-del]").forEach(b=> b.onclick = ()=> deletePark(b.getAttribute("data-del")));
+  }
+  function recallPark(id){
+    const idx = parked.findIndex(t=>t.id===id);
+    if (idx < 0) return;
+    const ticket = parked[idx];
+    if (cart.length){
+      if (!confirm("目前購物車有東西，先把它暫存起來、再取回 #"+ticket.no+"？")) return;
+      parkCart();   // 先把目前這筆暫存（會清空購物車）
+    }
+    parked = parked.filter(t=>t.id!==id);
+    save(K_PARKED, parked);
+    loadCartSnapshot(ticket);
+    renderCart(); updateParkBtn();
+    document.getElementById("parkModal").classList.remove("show");
+    openCart();
+    toast("已取回 #"+ticket.no);
+  }
+  function deletePark(id){
+    const t = parked.find(x=>x.id===id);
+    if (!t) return;
+    if (!confirm("確定刪掉暫存單 #"+t.no+"？刪了無法復原")) return;
+    parked = parked.filter(x=>x.id!==id);
+    save(K_PARKED, parked); updateParkBtn(); renderParkList();
+    toast("已刪除 #"+t.no);
+  }
+  updateParkBtn();
 
   // 付款
   document.getElementById("payLine").onclick = ()=>{

@@ -8,3 +8,9 @@
 *.zip
 *.jpeg
 seed_snippet.txt
+
+# 明文本尊與建置工具一律不上傳（線上只放加密後的 index.html）
+index_明文本尊.html
+index_encrypted.html
+build_encrypted.js
+*.py
